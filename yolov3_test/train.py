@@ -338,9 +338,9 @@ if __name__ == "__main__":
         # Defining the test dataset and data loader 
         val_dataset = Dataset( 
             # csv_file="./data/pascal voc/test.csv", 
-            image_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/val", # For Cybele, lidar images
+            image_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/valid", # For Cybele, lidar images
             # label_dir="./data/pascal voc/labels/", 
-            label_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/labels/val", # For Cybele, lidar labels
+            label_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/labels/valid", # For Cybele, lidar labels
             anchors=ANCHORS, 
             transform=test_transform
             # label_dir="./data/pascal voc/labels/",  
