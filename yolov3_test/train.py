@@ -59,11 +59,12 @@ image_size = 416
 s = [image_size // 32, image_size // 16, image_size // 8] 
 
 # Class labels 
-class_labels = [ 
-	"aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", 
-	"chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", 
-	"pottedplant", "sheep", "sofa", "train", "tvmonitor"
-]
+# class_labels = [ 
+# 	"aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", 
+# 	"chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", 
+# 	"pottedplant", "sheep", "sofa", "train", "tvmonitor"
+# ]
+class_labels = ["Pole"]
 
 # Function to plot images with bounding boxes and class labels 
 def plot_image(image, boxes): 
@@ -335,9 +336,11 @@ if __name__ == "__main__":
 
         # Defining the train dataset 
         train_dataset = Dataset( 
-            csv_file="./data/pascal voc/train.csv", 
-            image_dir="./data/pascal voc/images/", 
-            label_dir="./data/pascal voc/labels/", 
+            # csv_file="./data/pascal voc/train.csv", 
+            # image_dir="./data/pascal voc/images/", 
+            image_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/images", # For Cybele, lidar images
+            # label_dir="./data/pascal voc/labels/", 
+            label_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/labels", # For Cybele, lidar labels
             anchors=ANCHORS, 
             transform=train_transform 
         ) 

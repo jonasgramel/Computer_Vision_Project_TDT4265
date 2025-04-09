@@ -52,11 +52,35 @@ def yolo_to_xy_coords(image, bboxes):
             x_center, y_center = int(x_center * width), int(y_center * height)
             bbox_width, bbox_height = int(bbox_width * width), int(bbox_height * height)
 
-            # Calculate the top-left and bottom-right corners of the bounding box
+            # Calculate the bottom-left and top-right corners of the bounding box
             x_min, y_min = int(x_center - bbox_width / 2), int(y_center - bbox_height / 2)
             x_max, y_max = int(x_center + bbox_width / 2), int(y_center + bbox_height / 2)
             bboxes_xy[i] = [x_min, y_min, x_max, y_max]
     return bboxes_xy
+
+def xy_to_yolo_coords(bboxes):
+    """
+    Convert bounding boxes from pixel coordinates to YOLO format.
+
+    Input:
+        - bboxes (numpy array): Array of bounding boxes in pixel format: [x_min, y_min, x_max, y_max]
+
+    Output:
+        - bboxes (numpy array): Array of bounding boxes in YOLO format: [class_id, x_center, y_center, bbox_width, bbox_height]
+    """
+    bboxes_yolo = np.zeros((len(bboxes), 5), dtype=float)
+    for i, bbox in enumerate(bboxes):
+        if bbox is not None:       # Check if boundings boxes present
+            x_min, y_min, x_max, y_max = bbox
+
+            # Calculate the center and size of the bounding box
+            x_center = (x_min + x_max) / 2
+            y_center = (y_min + y_max) / 2
+            bbox_width = (x_max - x_min) 
+            bbox_height = (y_max - y_min)
+
+            bboxes_yolo[i] = [0.0, x_center, y_center, bbox_width, bbox_height]  # class_id is set to 0 for all boxes
+    return bboxes_yolo
 
 def draw_bounding_boxes(image, bboxes):
     """
@@ -85,3 +109,57 @@ def draw_bounding_boxes(image, bboxes):
             cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(image, "Pole", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0),2)
     return image
+
+def load_file_names(folder_path, dataset_type):
+    """
+    Load all images and their corresponding label files based on the list of image names.
+
+    Input:
+        - folder_path (str): Path to the dataset directory, either to rgb or lidar
+        - image_names (list): List of image names
+    Output:
+        - images (list): List of loaded images in RGB format
+        - label_files (list): List of corresponding label files
+    """
+
+    if "lidar" in folder_path:
+        image_type = "combined_color"
+    elif "rgb" in folder_path:
+        image_type = "images"
+    else:
+        raise ValueError("Invalid path name. Please provide a valid image name.")
+   
+    image_path = os.path.join(folder_path, image_type, dataset_type)
+    label_path = os.path.join(folder_path, "labels", dataset_type)    
+
+    image_files = sorted(os.listdir(image_path))
+    label_files = sorted(os.listdir(label_path))
+    
+    image_names = [filename for filename in image_files]
+    label_files = [filename for filename in label_files]
+    return image_names, label_files
+
+def load_images_and_labels(folder_path, input_size, dataset_type):
+    if "lidar" in folder_path:
+        image_type = "combined_color"
+    elif "rgb" in folder_path:
+        image_type = "images"
+    else:
+        raise ValueError("Invalid path name. Please provide a valid image name.")
+    image_names, label_names = load_file_names(folder_path, dataset_type)
+    image_arr = []
+    label_arr = []
+
+    for image_name, label_name in zip(image_names, label_names):
+        image_path = os.path.join(folder_path, image_type, dataset_type, image_name)
+        label_path = os.path.join(folder_path, "labels", dataset_type, label_name)
+
+        image = cv2.imread(image_path)
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        bbox = get_bounding_boxes(label_path)
+        
+        image_resized, bbox_resized = resize_image(image_rgb, bbox, input_size)
+        image_arr.append(image_resized)
+        label_arr.append(bbox_resized)
+
+    return image_arr, label_arr, image_names

@@ -1,5 +1,5 @@
 import torch
-import pandas as pd
+# import pandas as pd
 import os
 import numpy as np
 from PIL import Image, ImageFile 
@@ -13,12 +13,15 @@ class Dataset(torch.utils.data.Dataset):
     Accessed: 09-04-2025
     """
 	def __init__( 
-		self, csv_file, image_dir, label_dir, anchors, 
+		# self, csv_file, image_dir, label_dir, anchors, 
+		# image_size=416, grid_sizes=[13, 26, 52], 
+		# num_classes=20, transform=None
+		self, image_dir, label_dir, anchors, 
 		image_size=416, grid_sizes=[13, 26, 52], 
 		num_classes=1, transform=None
 	): 
 		# Read the csv file with image names and labels 
-		self.label_list = pd.read_csv(csv_file) 
+		self.label_list = [filename for filename in sorted(os.listdir(label_dir))]
 		# Image and label directories 
 		self.image_dir = image_dir 
 		self.label_dir = label_dir 
@@ -45,14 +48,14 @@ class Dataset(torch.utils.data.Dataset):
 	
 	def __getitem__(self, idx): 
 		# Getting the label path 
-		label_path = os.path.join(self.label_dir, self.label_list.iloc[idx, 1]) 
+		label_path = os.path.join(self.label_dir, self.label_list.iloc[idx]) 
 		# We are applying roll to move class label to the last column 
 		# 5 columns: x, y, width, height, class_label 
 		bboxes = np.roll(np.loadtxt(fname=label_path, 
 						delimiter=" ", ndmin=2), 4, axis=1).tolist() 
 		
 		# Getting the image path 
-		img_path = os.path.join(self.image_dir, self.label_list.iloc[idx, 0]) 
+		img_path = os.path.join(self.image_dir, os.path.splitext(self.label_list.iloc[idx])[0] + ".png") 
 		image = np.array(Image.open(img_path).convert("RGB")) 
 
 		# Albumentations augmentations 
