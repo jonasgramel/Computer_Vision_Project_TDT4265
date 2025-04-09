@@ -48,14 +48,14 @@ class Dataset(torch.utils.data.Dataset):
 	
 	def __getitem__(self, idx): 
 		# Getting the label path 
-		label_path = os.path.join(self.label_dir, self.label_list.iloc[idx]) 
+		label_path = os.path.join(self.label_dir, self.label_list[idx]) 
 		# We are applying roll to move class label to the last column 
 		# 5 columns: x, y, width, height, class_label 
 		bboxes = np.roll(np.loadtxt(fname=label_path, 
 						delimiter=" ", ndmin=2), 4, axis=1).tolist() 
 		
 		# Getting the image path 
-		img_path = os.path.join(self.image_dir, os.path.splitext(self.label_list.iloc[idx])[0] + ".png") 
+		img_path = os.path.join(self.image_dir, os.path.splitext(self.label_list[idx])[0] + ".png") 
 		image = np.array(Image.open(img_path).convert("RGB")) 
 
 		# Albumentations augmentations 

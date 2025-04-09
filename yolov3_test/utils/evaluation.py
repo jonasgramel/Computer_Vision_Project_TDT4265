@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from metrics_calculation import iou
+from utils.metrics_calculation import iou
 
 # Non-maximum suppression function to remove overlapping bounding boxes 
 def nms(bboxes, iou_threshold, threshold): 
