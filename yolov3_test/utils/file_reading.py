@@ -4,7 +4,7 @@ import os
 import numpy as np
 from PIL import Image, ImageFile 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
-from metrics_calculation import iou
+from utils.metrics_calculation import iou
 
 # Create a dataset class to load the images and labels from the folder 
 class Dataset(torch.utils.data.Dataset): 
