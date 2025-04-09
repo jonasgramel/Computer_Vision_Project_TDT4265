@@ -251,53 +251,53 @@ plot_image(x[0].permute(1,2,0).to("cpu"), boxes)
 
 # Define the train function to train the model 
 def training_loop(loader, model, optimizer, loss_fn, scaler, scaled_anchors): 
-	# Creating a progress bar 
-	progress_bar = tqdm(loader, leave=True) 
+    # Creating a progress bar 
+    progress_bar = tqdm(loader, leave=True) 
 
-	# Initializing a list to store the losses 
-	losses = [] 
+    # Initializing a list to store the losses 
+    losses = [] 
 
-	# Iterating over the training data 
-	for _, (x, y) in enumerate(progress_bar): 
-		x = x.to(device) 
-		y0, y1, y2 = ( 
-			y[0].to(device), 
-			y[1].to(device), 
-			y[2].to(device), 
-		) 
+    # Iterating over the training data 
+    for _, (x, y) in enumerate(progress_bar): 
+        x = x.to(device) 
+        y0, y1, y2 = ( 
+            y[0].to(device), 
+            y[1].to(device), 
+            y[2].to(device), 
+        ) 
 
-		with torch.cuda.amp.autocast(): 
-			# Getting the model predictions 
-			outputs = model(x) 
-			# Calculating the loss at each scale 
-			loss = ( 
-				loss_fn(outputs[0], y0, scaled_anchors[0]) 
-				+ loss_fn(outputs[1], y1, scaled_anchors[1]) 
-				+ loss_fn(outputs[2], y2, scaled_anchors[2]) 
-			) 
+        with torch.amp.autocast('cuda'): 
+            # Getting the model predictions 
+            outputs = model(x) 
+            # Calculating the loss at each scale 
+            loss = ( 
+                loss_fn(outputs[0], y0, scaled_anchors[0]) 
+                + loss_fn(outputs[1], y1, scaled_anchors[1]) 
+                + loss_fn(outputs[2], y2, scaled_anchors[2]) 
+            ) 
 
-		# Add the loss to the list 
-		losses.append(loss.item()) 
+        # Add the loss to the list 
+        losses.append(loss.item()) 
 
-		# Reset gradients 
-		optimizer.zero_grad() 
+        # Reset gradients 
+        optimizer.zero_grad() 
 
-		# Backpropagate the loss 
-		scaler.scale(loss).backward() 
+        # Backpropagate the loss 
+        scaler.scale(loss).backward() 
 
-		# Optimization step 
-		scaler.step(optimizer) 
+        # Optimization step 
+        scaler.step(optimizer) 
+        
+        # Update the scaler for next iteration 
+        scaler.update() 
+        # update progress bar with loss 
+        mean_loss = sum(losses) / len(losses) 
+        progress_bar.set_postfix(loss=mean_loss)
+    
+    return losses, mean_loss   
 
-		# Update the scaler for next iteration 
-		scaler.update() 
-
-		# update progress bar with loss 
-		mean_loss = sum(losses) / len(losses) 
-		progress_bar.set_postfix(loss=mean_loss)
-
-
-test_yolov3 = False
-trainyolov3 = True
+test_yolov3 = True
+trainyolov3 = False
 
 if __name__ == "__main__": 
 
@@ -320,6 +320,70 @@ if __name__ == "__main__":
         assert model(x)[2].shape == (1, 3, IMAGE_SIZE//8, IMAGE_SIZE//8, num_classes + 5) 
         print("Output shapes are correct!")
 
+        # Taking a sample image and testing the model 
+  
+        # Setting the load_model to True 
+        load_model = True
+        
+        # Defining the model, optimizer, loss function and scaler 
+        model = YOLOv3().to(device) 
+        optimizer = optim.Adam(model.parameters(), lr = leanring_rate) 
+        loss_fn = YOLOLoss() 
+        scaler = torch.amp.GradScaler('cuda') 
+        
+        # Loading the checkpoint 
+        if load_model: 
+            load_checkpoint(checkpoint_file, model, optimizer, leanring_rate) 
+        
+        # Defining the test dataset and data loader 
+        val_dataset = Dataset( 
+            # csv_file="./data/pascal voc/test.csv", 
+            image_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/val", # For Cybele, lidar images
+            # label_dir="./data/pascal voc/labels/", 
+            label_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/labels/val", # For Cybele, lidar labels
+            anchors=ANCHORS, 
+            transform=test_transform
+            # label_dir="./data/pascal voc/labels/",  
+        ) 
+        val_loader = torch.utils.data.DataLoader( 
+            val_dataset, 
+            batch_size = 1, 
+            num_workers = 2, 
+            shuffle = True, 
+        ) 
+        
+        # Getting a sample image from the test data loader 
+        x, y = next(iter(val_loader)) 
+        x = x.to(device) 
+        
+        model.eval() 
+        with torch.no_grad(): 
+            # Getting the model predictions 
+            output = model(x) 
+            # Getting the bounding boxes from the predictions 
+            bboxes = [[] for _ in range(x.shape[0])] 
+            anchors = ( 
+                    torch.tensor(ANCHORS) 
+                        * torch.tensor(s).unsqueeze(1).unsqueeze(1).repeat(1, 3, 2) 
+                    ).to(device) 
+        
+            # Getting bounding boxes for each scale 
+            for i in range(3): 
+                batch_size, A, S, _, _ = output[i].shape 
+                anchor = anchors[i] 
+                boxes_scale_i = convert_cells_to_bboxes( 
+                                    output[i], anchor, s=S, is_predictions=True
+                                ) 
+                for idx, (box) in enumerate(boxes_scale_i): 
+                    bboxes[idx] += box 
+        model.train() 
+        
+        # Plotting the image with bounding boxes for each image in the batch 
+        for i in range(batch_size): 
+            # Applying non-max suppression to remove overlapping bounding boxes 
+            nms_boxes = nms(bboxes[i], iou_threshold=0.5, threshold=0.6) 
+            # Plotting the image with bounding boxes 
+            plot_image(x[i].permute(1,2,0).detach().cpu(), nms_boxes)
 
     if trainyolov3:
         # Creating the model from YOLOv3 class 
@@ -360,10 +424,13 @@ if __name__ == "__main__":
             torch.tensor(s).unsqueeze(1).unsqueeze(1).repeat(1,3,2) 
         ).to(device) 
 
+        plt.figure()
+
         # Training the model 
         for e in range(1, epochs+1): 
             print("Epoch:", e) 
-            training_loop(train_loader, model, optimizer, loss_fn, scaler, scaled_anchors) 
+            losses, mean_loss = training_loop(train_loader, model, optimizer, loss_fn, scaler, scaled_anchors) 
+            plt.plot(losses, label=f"Epoch {e}")
 
             # Saving the model 
             if save_model: 
