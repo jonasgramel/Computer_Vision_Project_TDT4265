@@ -50,7 +50,7 @@ batch_size = 32
 leanring_rate = 1e-5
 
 # Number of epochs for training 
-epochs = 10
+epochs = 20
 
 # Image size 
 image_size = 416
@@ -209,9 +209,9 @@ test_transform = A.Compose(
 
 # Creating a dataset object 
 dataset = Dataset( 
-	#csv_file="train.csv", 
-	image_dir="/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/train", 
-	label_dir="/work/datasets/tdt4265/ad/open/Poles/lidar/labels/train", 
+	csv_file="train.csv", 
+	image_dir="images/", 
+	label_dir="labels/", 
 	grid_sizes=[13, 26, 52], 
 	anchors=ANCHORS, 
 	transform=test_transform 
@@ -295,9 +295,12 @@ def training_loop(loader, model, optimizer, loss_fn, scaler, scaled_anchors):
 		mean_loss = sum(losses) / len(losses) 
 		progress_bar.set_postfix(loss=mean_loss)
 
+    return losses
 
-test_yolov3 = False
-trainyolov3 = True
+
+
+test_yolov3 = True
+trainyolov3 = False
 
 if __name__ == "__main__": 
 
@@ -338,9 +341,9 @@ if __name__ == "__main__":
         train_dataset = Dataset( 
             # csv_file="./data/pascal voc/train.csv", 
             # image_dir="./data/pascal voc/images/", 
-            image_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/train", # For Cybele, lidar images
+            image_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/images", # For Cybele, lidar images
             # label_dir="./data/pascal voc/labels/", 
-            label_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/labels/train", # For Cybele, lidar labels
+            label_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/labels", # For Cybele, lidar labels
             anchors=ANCHORS, 
             transform=train_transform 
         ) 
@@ -368,3 +371,4 @@ if __name__ == "__main__":
             # Saving the model 
             if save_model: 
                 save_checkpoint(model, optimizer, filename=f"checkpoint.pth.tar")
+        
