@@ -212,7 +212,9 @@ dataset = Dataset(
 	#csv_file="train.csv", 
 	image_dir="/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/train", 
 	label_dir="/work/datasets/tdt4265/ad/open/Poles/lidar/labels/train", 
-	grid_sizes=[13, 26, 52], 
+	
+	
+    grid_sizes=[13, 26, 52], 
 	anchors=ANCHORS, 
 	transform=test_transform 
 ) 
@@ -296,10 +298,60 @@ def training_loop(loader, model, optimizer, loss_fn, scaler, scaled_anchors):
     
     return losses, mean_loss   
 
-test_yolov3 = True
-trainyolov3 = False
+trainyolov3 = True
+test_yolov3 = False
+
 
 if __name__ == "__main__": 
+
+    if trainyolov3:
+        # Creating the model from YOLOv3 class 
+        model = YOLOv3().to(device) 
+
+        # Defining the optimizer 
+        optimizer = optim.Adam(model.parameters(), lr = leanring_rate) 
+
+        # Defining the loss function 
+        loss_fn = YOLOLoss() 
+
+        # Defining the scaler for mixed precision training 
+        scaler = torch.cuda.amp.GradScaler() 
+
+        # Defining the train dataset 
+        train_dataset = Dataset( 
+            # csv_file="./data/pascal voc/train.csv", 
+            image_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/train", # For Cybele, lidar images
+            label_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/labels/train", # For Cybele, lidar labels
+            anchors=ANCHORS, 
+            transform=train_transform 
+        ) 
+
+        # Defining the train data loader 
+        train_loader = torch.utils.data.DataLoader( 
+            train_dataset, 
+            batch_size = batch_size, 
+            num_workers = 2, 
+            shuffle = True, 
+            pin_memory = True, 
+        ) 
+
+        # Scaling the anchors 
+        scaled_anchors = ( 
+            torch.tensor(ANCHORS) *
+            torch.tensor(s).unsqueeze(1).unsqueeze(1).repeat(1,3,2) 
+        ).to(device) 
+
+        plt.figure()
+
+        # Training the model 
+        for e in range(1, epochs+1): 
+            print("Epoch:", e) 
+            losses, mean_loss = training_loop(train_loader, model, optimizer, loss_fn, scaler, scaled_anchors) 
+            plt.plot(losses, label=f"Epoch {e}")
+
+            # Saving the model 
+            if save_model: 
+                save_checkpoint(model, optimizer, filename=f"checkpoint.pth.tar")
 
     if test_yolov3:
         # Setting number of classes and image size 
@@ -384,54 +436,3 @@ if __name__ == "__main__":
             nms_boxes = nms(bboxes[i], iou_threshold=0.5, threshold=0.6) 
             # Plotting the image with bounding boxes 
             plot_image(x[i].permute(1,2,0).detach().cpu(), nms_boxes)
-
-    if trainyolov3:
-        # Creating the model from YOLOv3 class 
-        model = YOLOv3().to(device) 
-
-        # Defining the optimizer 
-        optimizer = optim.Adam(model.parameters(), lr = leanring_rate) 
-
-        # Defining the loss function 
-        loss_fn = YOLOLoss() 
-
-        # Defining the scaler for mixed precision training 
-        scaler = torch.cuda.amp.GradScaler() 
-
-        # Defining the train dataset 
-        train_dataset = Dataset( 
-            # csv_file="./data/pascal voc/train.csv", 
-            # image_dir="./data/pascal voc/images/", 
-            image_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/train", # For Cybele, lidar images
-            # label_dir="./data/pascal voc/labels/", 
-            label_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/labels/train", # For Cybele, lidar labels
-            anchors=ANCHORS, 
-            transform=train_transform 
-        ) 
-
-        # Defining the train data loader 
-        train_loader = torch.utils.data.DataLoader( 
-            train_dataset, 
-            batch_size = batch_size, 
-            num_workers = 2, 
-            shuffle = True, 
-            pin_memory = True, 
-        ) 
-
-        # Scaling the anchors 
-        scaled_anchors = ( 
-            torch.tensor(ANCHORS) *
-            torch.tensor(s).unsqueeze(1).unsqueeze(1).repeat(1,3,2) 
-        ).to(device) 
-
-        plt.figure()
-
-        # Training the model 
-        for e in range(1, epochs+1): 
-            print("Epoch:", e) 
-            losses, mean_loss = training_loop(train_loader, model, optimizer, loss_fn, scaler, scaled_anchors) 
-            plt.plot(losses, label=f"Epoch {e}")
-
-            # Saving the model 
-            if save_model: 
-                save_checkpoint(model, optimizer, filename=f"checkpoint.pth.tar")
