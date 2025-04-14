@@ -67,7 +67,7 @@ s = [image_size // 32, image_size // 16, image_size // 8]
 class_labels = ["Pole"]
 
 # Function to plot images with bounding boxes and class labels 
-def plot_image(image, boxes): 
+def plot_image(image, boxes, image_index): 
     """
     This function is gathered from Geeks for Geeks: https://www.geeksforgeeks.org/yolov3-from-scratch-using-pytorch/ 
     Accessed: 09-04-2025
@@ -92,9 +92,9 @@ def plot_image(image, boxes):
     for box in boxes: 
         print("Box: ", box)
         # Get the class from the box 
-        class_pred = box[0] 
+        class_pred = box[4] 
         # Get the center x and y coordinates 
-        box = box[2:] 
+        box = box[:4] 
         # Get the upper left corner coordinates 
         upper_left_x = box[0] - box[2] / 2
         upper_left_y = box[1] - box[3] / 2
@@ -123,7 +123,7 @@ def plot_image(image, boxes):
         ) 
   
     # Display the plot 
-    plt.show()
+    plt.savefig("figures/figure"+str(image_index))
     
 # Function to save checkpoint 
 def save_checkpoint(model, optimizer, filename="my_checkpoint.pth.tar"): 
@@ -249,7 +249,7 @@ for i in range(y[0].shape[1]):
 boxes = nms(boxes, iou_threshold=1, threshold=0.7) 
 
 # Plotting the image with the bounding boxes 
-plot_image(x[0].permute(1,2,0).to("cpu"), boxes)
+plot_image(x[0].permute(1,2,0).to("cpu"), boxes, 1)
 
 
 # Define the train function to train the model 
@@ -305,135 +305,136 @@ test_yolov3 = True
 
 if __name__ == "__main__": 
 
-    if trainyolov3:
-        # Creating the model from YOLOv3 class 
-        model = YOLOv3().to(device) 
+	if trainyolov3:
+		# Creating the model from YOLOv3 class 
+		model = YOLOv3().to(device) 
 
-        # Defining the optimizer 
-        optimizer = optim.Adam(model.parameters(), lr = learning_rate) 
+		# Defining the optimizer 
+		optimizer = optim.Adam(model.parameters(), lr = learning_rate) 
 
-        # Defining the loss function 
-        loss_fn = YOLOLoss() 
+		# Defining the loss function 
+		loss_fn = YOLOLoss() 
 
-        # Defining the scaler for mixed precision training 
-        scaler = torch.cuda.amp.GradScaler() 
+		# Defining the scaler for mixed precision training 
+		scaler = torch.cuda.amp.GradScaler() 
 
-        # Defining the train dataset 
-        train_dataset = Dataset( 
-            # csv_file="./data/pascal voc/train.csv", 
-            image_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/train", # For Cybele, lidar images
-            label_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/labels/train", # For Cybele, lidar labels
-            anchors=ANCHORS, 
-            transform=train_transform 
-        ) 
+		# Defining the train dataset 
+		train_dataset = Dataset( 
+		    # csv_file="./data/pascal voc/train.csv", 
+		    image_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/train", # For Cybele, lidar images
+		    label_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/labels/train", # For Cybele, lidar labels
+		    anchors=ANCHORS, 
+		    transform=train_transform 
+		) 
 
-        # Defining the train data loader 
-        train_loader = torch.utils.data.DataLoader( 
-            train_dataset, 
-            batch_size = batch_size, 
-            num_workers = 2, 
-            shuffle = True, 
-            pin_memory = True, 
-        ) 
+		# Defining the train data loader 
+		train_loader = torch.utils.data.DataLoader( 
+		    train_dataset, 
+		    batch_size = batch_size, 
+		    num_workers = 2, 
+		    shuffle = True, 
+		    pin_memory = True, 
+		) 
 
-        # Scaling the anchors 
-        scaled_anchors = ( 
-            torch.tensor(ANCHORS) *
-            torch.tensor(s).unsqueeze(1).unsqueeze(1).repeat(1,3,2) 
-        ).to(device) 
+		# Scaling the anchors 
+		scaled_anchors = ( 
+		    torch.tensor(ANCHORS) *
+		    torch.tensor(s).unsqueeze(1).unsqueeze(1).repeat(1,3,2) 
+		).to(device) 
 
-        plt.figure()
+		plt.figure()
 
-        # Training the model 
-        for e in range(1, epochs+1): 
-            print("Epoch:", e) 
-            losses, mean_loss = training_loop(train_loader, model, optimizer, loss_fn, scaler, scaled_anchors) 
-            plt.plot(losses, label=f"Epoch {e}")
+		# Training the model 
+		for e in range(1, epochs+1): 
+		    print("Epoch:", e) 
+		    losses, mean_loss = training_loop(train_loader, model, optimizer, loss_fn, scaler, scaled_anchors) 
+		    plt.plot(losses, label=f"Epoch {e}")
 
-            # Saving the model 
-            if save_model: 
-                save_checkpoint(model, optimizer, filename=f"checkpoint.pth.tar")
+		    # Saving the model 
+		    if save_model: 
+		        save_checkpoint(model, optimizer, filename=f"checkpoint.pth.tar")
 
-    if test_yolov3:
+		plt.savefig("figures/Error_curve")
+	if test_yolov3:
         # Setting number of classes and image size 
-        num_classes = 1
-        IMAGE_SIZE = 416
-    
-        # Creating model and testing output shapes 
-        model = YOLOv3(num_classes=num_classes) 
-        x = torch.randn((1, 3, IMAGE_SIZE, IMAGE_SIZE)) 
-        out = model(x) 
-        print(out[0].shape) 
-        print(out[1].shape) 
-        print(out[2].shape) 
-    
-        # Asserting output shapes 
-        assert model(x)[0].shape == (1, 3, IMAGE_SIZE//32, IMAGE_SIZE//32, num_classes + 5) 
-        assert model(x)[1].shape == (1, 3, IMAGE_SIZE//16, IMAGE_SIZE//16, num_classes + 5) 
-        assert model(x)[2].shape == (1, 3, IMAGE_SIZE//8, IMAGE_SIZE//8, num_classes + 5) 
-        print("Output shapes are correct!")
+	        num_classes = 1
+	        IMAGE_SIZE = 416
+	    
+	        # Creating model and testing output shapes 
+	        model = YOLOv3(num_classes=num_classes) 
+	        x = torch.randn((1, 3, IMAGE_SIZE, IMAGE_SIZE)) 
+	        out = model(x) 
+	        print(out[0].shape) 
+	        print(out[1].shape) 
+	        print(out[2].shape) 
+	    
+	        # Asserting output shapes 
+	        assert model(x)[0].shape == (1, 3, IMAGE_SIZE//32, IMAGE_SIZE//32, num_classes + 5) 
+	        assert model(x)[1].shape == (1, 3, IMAGE_SIZE//16, IMAGE_SIZE//16, num_classes + 5) 
+	        assert model(x)[2].shape == (1, 3, IMAGE_SIZE//8, IMAGE_SIZE//8, num_classes + 5) 
+	        print("Output shapes are correct!")
 
-        # Taking a sample image and testing the model 
-  
-        # Setting the load_model to True 
-        load_model = True
-        
-        # Defining the model, optimizer, loss function and scaler 
-        model = YOLOv3().to(device) 
-        optimizer = optim.Adam(model.parameters(), lr = learning_rate) 
-        loss_fn = YOLOLoss() 
-        scaler = torch.amp.GradScaler('cuda') 
-        
-        # Loading the checkpoint 
-        if load_model: 
-            load_checkpoint(checkpoint_file, model, optimizer, learning_rate ) 
-        
-        # Defining the test dataset and data loader 
-        val_dataset = Dataset( 
-            # csv_file="./data/pascal voc/test.csv", 
-            image_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/valid", # For Cybele, lidar images
-            # label_dir="./data/pascal voc/labels/", 
-            label_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/labels/valid", # For Cybele, lidar labels
-            anchors=ANCHORS, 
-            transform=test_transform
-            # label_dir="./data/pascal voc/labels/",  
-        ) 
-        val_loader = torch.utils.data.DataLoader( 
-            val_dataset, 
-            batch_size = 1, 
-            num_workers = 2, 
-            shuffle = True, 
-        ) 
-        
-        # Getting a sample image from the test data loader 
-        x, y = next(iter(val_loader)) 
-        x = x.to(device) 
-        
-        model.eval() 
-        with torch.no_grad(): 
-            # Getting the model predictions 
-            output = model(x) 
-            # Getting the bounding boxes from the predictions 
-            bboxes = [[] for _ in range(x.shape[0])] 
-            anchors = ( 
-                    torch.tensor(ANCHORS) 
-                        * torch.tensor(s).unsqueeze(1).unsqueeze(1).repeat(1, 3, 2) 
-                    ).to(device) 
-        
-            # Getting bounding boxes for each scale 
-            for i in range(3): 
-                batch_size, A, S, _, _ = output[i].shape 
-                anchor = anchors[i] 
-                boxes_scale_i = convert_cells_to_bboxes( 
-                                    output[i], anchor, s=S, is_predictions=True
-                                ) 
-                for idx, (box) in enumerate(boxes_scale_i): 
-                    bboxes[idx] += box 
-        model.train() 
-        
-        # Plotting the image with bounding boxes for each image in the batch 
-        for i in range(batch_size): 
-            # Applying non-max suppression to remove overlapping bounding boxes 
-            nms_boxes = nms(bboxes[i], iou_threshold=0.5, threshold=0.6) 
-            # Plotting the image with bounding boxes 
-            plot_image(x[i].permute(1,2,0).detach().cpu(), nms_boxes)
+	        # Taking a sample image and testing the model 
+	  
+	        # Setting the load_model to True 
+	        load_model = True
+	        
+	        # Defining the model, optimizer, loss function and scaler 
+	        model = YOLOv3().to(device) 
+	        optimizer = optim.Adam(model.parameters(), lr = learning_rate) 
+	        loss_fn = YOLOLoss() 
+	        scaler = torch.amp.GradScaler('cuda') 
+	        
+	        # Loading the checkpoint 
+	        if load_model: 
+	            load_checkpoint(checkpoint_file, model, optimizer, learning_rate ) 
+	        
+	        # Defining the test dataset and data loader 
+	        val_dataset = Dataset( 
+	            # csv_file="./data/pascal voc/test.csv", 
+	            image_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/valid", # For Cybele, lidar images
+	            # label_dir="./data/pascal voc/labels/", 
+	            label_dir = "/work/datasets/tdt4265/ad/open/Poles/lidar/labels/valid", # For Cybele, lidar labels
+	            anchors=ANCHORS, 
+	            transform=test_transform
+	            # label_dir="./data/pascal voc/labels/",  
+	        ) 
+	        val_loader = torch.utils.data.DataLoader( 
+	            val_dataset, 
+	            batch_size = 1, 
+	            num_workers = 2, 
+	            shuffle = True, 
+	        ) 
+	        
+	        # Getting a sample image from the test data loader 
+	        x, y = next(iter(val_loader)) 
+	        x = x.to(device) 
+	        
+	        model.eval() 
+	        with torch.no_grad(): 
+	            # Getting the model predictions 
+	            output = model(x) 
+	            # Getting the bounding boxes from the predictions 
+	            bboxes = [[] for _ in range(x.shape[0])] 
+	            anchors = ( 
+	                    torch.tensor(ANCHORS) 
+	                        * torch.tensor(s).unsqueeze(1).unsqueeze(1).repeat(1, 3, 2) 
+	                    ).to(device) 
+	        
+	            # Getting bounding boxes for each scale 
+	            for i in range(3): 
+	                batch_size, A, S, _, _ = output[i].shape 
+	                anchor = anchors[i] 
+	                boxes_scale_i = convert_cells_to_bboxes( 
+	                                    output[i], anchor, s=S, is_predictions=True
+	                                ) 
+	                for idx, (box) in enumerate(boxes_scale_i): 
+	                    bboxes[idx] += box 
+	        model.train() 
+	        
+	        # Plotting the image with bounding boxes for each image in the batch 
+	        for i in range(batch_size): 
+	            # Applying non-max suppression to remove overlapping bounding boxes 
+	            nms_boxes = nms(bboxes[i], iou_threshold=0.5, threshold=0.6) 
+	            # Plotting the image with bounding boxes 
+	            plot_image(x[i].permute(1,2,0).detach().cpu(), nms_boxes, i)
