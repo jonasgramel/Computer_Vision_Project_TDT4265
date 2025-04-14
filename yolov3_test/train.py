@@ -299,7 +299,7 @@ def training_loop(loader, model, optimizer, loss_fn, scaler, scaled_anchors):
     
     return losses, mean_loss   
 
-trainyolov3 = False
+trainyolov3 = True
 test_yolov3 = True
 
 
