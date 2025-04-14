@@ -20,8 +20,7 @@ def convert_cells_to_bboxes(predictions, anchors, s, is_predictions=True):
     if is_predictions: 
         anchors = anchors.reshape(1, len(anchors), 1, 1, 2) 
         box_predictions[..., 0:2] = torch.sigmoid(box_predictions[..., 0:2]) 
-        box_predictions[..., 2:] = torch.exp( 
-            box_predictions[..., 2:]) * anchors 
+        box_predictions[..., 2:] = torch.exp(box_predictions[..., 2:]) * anchors 
         scores = torch.sigmoid(predictions[..., 0:1]) 
         best_class = torch.argmax(predictions[..., 5:], dim=-1).unsqueeze(-1) 
       
@@ -46,9 +45,12 @@ def convert_cells_to_bboxes(predictions, anchors, s, is_predictions=True):
   
     # Concatinating the values and reshaping them in 
     # (BATCH_SIZE, num_anchors * S * S, 6) shape 
+    # converted_bboxes = torch.cat( 
+    #     (best_class, scores, x, y, width_height), dim=-1
+    # ).reshape(batch_size, num_anchors * s * s, 6)
     converted_bboxes = torch.cat( 
-        (best_class, scores, x, y, width_height), dim=-1
-    ).reshape(batch_size, num_anchors * s * s, 6) 
+        (x, y, width_height, best_class), dim=-1
+    ).reshape(batch_size, num_anchors * s * s, 5) 
   
     # Returning the reshaped and converted bounding box list 
     return converted_bboxes.tolist()
