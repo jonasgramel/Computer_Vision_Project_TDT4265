@@ -299,8 +299,8 @@ def training_loop(loader, model, optimizer, loss_fn, scaler, scaled_anchors):
     
     return losses, mean_loss   
 
-trainyolov3 = True
-test_yolov3 = False
+trainyolov3 = False
+test_yolov3 = True
 
 
 if __name__ == "__main__": 
@@ -356,7 +356,7 @@ if __name__ == "__main__":
 
     if test_yolov3:
         # Setting number of classes and image size 
-        num_classes = 20
+        num_classes = 1
         IMAGE_SIZE = 416
     
         # Creating model and testing output shapes 
