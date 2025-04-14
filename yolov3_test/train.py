@@ -59,11 +59,7 @@ image_size = 416
 s = [image_size // 32, image_size // 16, image_size // 8] 
 
 # Class labels 
-# class_labels = [ 
-# 	"aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", 
-# 	"chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", 
-# 	"pottedplant", "sheep", "sofa", "train", "tvmonitor"
-# ]
+
 class_labels = ["Pole"]
 
 # Function to plot images with bounding boxes and class labels 
