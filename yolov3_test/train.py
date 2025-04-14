@@ -47,7 +47,7 @@ ANCHORS = [
 batch_size = 32
 
 # Learning rate for training 
-leanring_rate = 1e-5
+learning_rate = 1e-5
 
 # Number of epochs for training 
 epochs = 10
@@ -87,9 +87,10 @@ def plot_image(image, boxes):
   
     # Add image to plot 
     ax.imshow(img) 
-  
+    print("Number of boxes: ", len(boxes))
     # Plotting the bounding boxes and labels over the image 
     for box in boxes: 
+        print("Box: ", box)
         # Get the class from the box 
         class_pred = box[0] 
         # Get the center x and y coordinates 
@@ -144,7 +145,7 @@ def load_checkpoint(checkpoint_file, model, optimizer, lr):
     Accessed: 09-04-2025
     """
     print("==> Loading checkpoint") 
-    checkpoint = torch.load(checkpoint_file, map_location=device) 
+    checkpoint = torch.load(checkpoint_file, map_location=device, weights_only=True) 
     model.load_state_dict(checkpoint["state_dict"]) 
     optimizer.load_state_dict(checkpoint["optimizer"]) 
   
@@ -309,7 +310,7 @@ if __name__ == "__main__":
         model = YOLOv3().to(device) 
 
         # Defining the optimizer 
-        optimizer = optim.Adam(model.parameters(), lr = leanring_rate) 
+        optimizer = optim.Adam(model.parameters(), lr = learning_rate) 
 
         # Defining the loss function 
         loss_fn = YOLOLoss() 
@@ -379,13 +380,13 @@ if __name__ == "__main__":
         
         # Defining the model, optimizer, loss function and scaler 
         model = YOLOv3().to(device) 
-        optimizer = optim.Adam(model.parameters(), lr = leanring_rate) 
+        optimizer = optim.Adam(model.parameters(), lr = learning_rate) 
         loss_fn = YOLOLoss() 
         scaler = torch.amp.GradScaler('cuda') 
         
         # Loading the checkpoint 
         if load_model: 
-            load_checkpoint(checkpoint_file, model, optimizer, leanring_rate) 
+            load_checkpoint(checkpoint_file, model, optimizer, learning_rate ) 
         
         # Defining the test dataset and data loader 
         val_dataset = Dataset( 
