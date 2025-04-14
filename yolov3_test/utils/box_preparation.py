@@ -6,7 +6,6 @@ def convert_cells_to_bboxes(predictions, anchors, s, is_predictions=True):
     This function is gathered from Geeks for Geeks: https://www.geeksforgeeks.org/yolov3-from-scratch-using-pytorch/ 
     Accessed: 09-04-2025
     """
-    print(predictions[np.nonzero(predictions)])
     # Batch size used on predictions 
     batch_size = predictions.shape[0] 
     # Number of anchors 
@@ -49,8 +48,8 @@ def convert_cells_to_bboxes(predictions, anchors, s, is_predictions=True):
     #     (best_class, scores, x, y, width_height), dim=-1
     # ).reshape(batch_size, num_anchors * s * s, 6)
     converted_bboxes = torch.cat( 
-        (x, y, width_height, best_class), dim=-1
-    ).reshape(batch_size, num_anchors * s * s, 5) 
+        (best_class, scores, x, y, width_height), dim=-1
+    ).reshape(batch_size, num_anchors * s * s, 6) 
   
     # Returning the reshaped and converted bounding box list 
     return converted_bboxes.tolist()

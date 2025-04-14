@@ -88,9 +88,9 @@ def plot_image(image, boxes, image_index):
     for box in boxes: 
         print("Box: ", box)
         # Get the class from the box 
-        class_pred = box[4] 
+        class_pred = box[0] 
         # Get the center x and y coordinates 
-        box = box[:4] 
+        box = box[2:] 
         # Get the upper left corner coordinates 
         upper_left_x = box[0] - box[2] / 2
         upper_left_y = box[1] - box[3] / 2
