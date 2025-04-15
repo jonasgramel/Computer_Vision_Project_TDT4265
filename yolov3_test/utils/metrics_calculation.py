@@ -2,6 +2,8 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
+from utils.box_preparation import yolo_to_xy_coords
+
 # Defining a function to calculate Intersection over Union (IoU) 
 def iou(box1, box2, is_pred=True): 
     """
@@ -337,30 +339,20 @@ def mean_average_precision(ground_truth_boxes, predicted_boxes):
         with IoU threshold of 0.5
 
     Args:
-        ground_truth_boxes: (dict)
-        {
-            "img_id1": (np.array of float). Shape [number of GT boxes, 4]
-        }
-        predicted_boxes: (dict)
-        {
-            "img_id1": {
-                "boxes": (np.array of float). Shape: [number of pred boxes, 4],
-                "scores": (np.array of float). Shape: [number of pred boxes]
-            }
-        }
+        ground_truth_boxes: (array): yolo format
+        predicted_boxes: (array): yolo format
+    Returns:
+        precisions, recalls, mean_average_precision: (np.array of floats) length of N
     """
     # DO NOT EDIT THIS CODE
     all_gt_boxes = []
     all_prediction_boxes = []
     confidence_scores = []
 
-    for image_id in ground_truth_boxes.keys():
-        pred_boxes = predicted_boxes[image_id]["boxes"]
-        scores = predicted_boxes[image_id]["scores"]
-
-        all_gt_boxes.append(ground_truth_boxes[image_id])
-        all_prediction_boxes.append(pred_boxes)
-        confidence_scores.append(scores)
+    for i in range(len(ground_truth_boxes)):
+        predicted_boxes = yolo_to_xy_coords(predicted_boxes[i])
+        gt_boxes = yolo_to_xy_coords(ground_truth_boxes[i])
+        confidence_scores.append(predicted_boxes[:, 1])
 
     precisions, recalls = get_precision_recall_curve(
         all_prediction_boxes, all_gt_boxes, confidence_scores, 0.5)

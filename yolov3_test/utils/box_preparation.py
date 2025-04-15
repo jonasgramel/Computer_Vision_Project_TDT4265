@@ -53,3 +53,27 @@ def convert_cells_to_bboxes(predictions, anchors, s, is_predictions=True):
   
     # Returning the reshaped and converted bounding box list 
     return converted_bboxes.tolist()
+
+def yolo_to_xy_coords(bboxes):
+    """
+    Input: 
+        - bboxes (numpy array): Array of bounding boxes in YOLO format: [class_id, x_center, y_center, bbox_width, bbox_height]
+
+    Output:
+        - bboxes (numpy array): Array of bounding boxes in pixel format: [x_min, y_min, x_max, y_max]
+    """
+    bboxes_xy = np.zeros((len(bboxes), 4), dtype=int)
+    height, width = 416, 416
+    for i, bbox in enumerate(bboxes):
+        if bbox is not None:       # Check if boundings boxes present
+            class_id, confidence_score, x_center, y_center, bbox_width, bbox_height = bbox
+
+            # Convert YOLO format to pixel coordinates
+            x_center, y_center = int(x_center * width), int(y_center * height)
+            bbox_width, bbox_height = int(bbox_width * width), int(bbox_height * height)
+
+            # Calculate the bottom-left and top-right corners of the bounding box
+            x_min, y_min = int(x_center - bbox_width / 2), int(y_center - bbox_height / 2)
+            x_max, y_max = int(x_center + bbox_width / 2), int(y_center + bbox_height / 2)
+            bboxes_xy[i] = [x_min, y_min, x_max, y_max]
+    return bboxes_xy

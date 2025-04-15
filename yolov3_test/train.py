@@ -71,7 +71,6 @@ def plot_image(image, boxes, image_index):
     """
     # Getting the color map from matplotlib 
     colour_map = plt.get_cmap("tab20b") 
-    # Getting 20 different colors from the color map for 20 different classes 
     colors = [colour_map(i) for i in np.linspace(0, 1, len(class_labels))] 
   
     # Reading the image with OpenCV 
@@ -296,7 +295,7 @@ def training_loop(loader, model, optimizer, loss_fn, scaler, scaled_anchors):
     
     return losses, mean_loss   
 
-trainyolov3 = True
+trainyolov3 = False
 test_yolov3 = True
 
 
