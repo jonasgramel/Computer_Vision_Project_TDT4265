@@ -50,7 +50,7 @@ batch_size = 32
 learning_rate = 1e-5
 
 # Number of epochs for training 
-epochs = 20
+epochs = 10
 
 # Image size 
 image_size = 416
@@ -337,20 +337,20 @@ if __name__ == "__main__":
 			torch.tensor(ANCHORS) *
 			torch.tensor(s).unsqueeze(1).unsqueeze(1).repeat(1,3,2) 
 		).to(device) 
-
+		losses_list = []
 		plt.figure()
 
 		# Training the model 
 		for e in range(1, epochs+1): 
 			print("Epoch:", e) 
-			losses, mean_loss = training_loop(train_loader, model, optimizer, loss_fn, scaler, scaled_anchors) 
-			plt.plot(losses, label=f"Epoch {e}")
+			losses, mean_loss = training_loop(train_loader, model, optimizer, loss_fn, scaler, scaled_anchors)			
+			losses_list.extend(losses)
 
 			# Saving the model
 		if save_model:
 			save_checkpoint(model, optimizer, filename=f"checkpoint.pth.tar")
 
-		plt.legend()
+		plt.plot(losses_list)
 		plt.savefig("figures/error_plot")
 
 	if test_yolov3:
