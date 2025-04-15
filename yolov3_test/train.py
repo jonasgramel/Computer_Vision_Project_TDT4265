@@ -22,6 +22,7 @@ from utils.box_preparation import convert_cells_to_bboxes
 from utils.file_reading import Dataset
 from utils.evaluation import nms, YOLOLoss
 from model_structure import YOLOv3
+from utils.metrics_calculation import mean_average_precision
 
 ### Defining paramters and objects:
 
@@ -402,37 +403,46 @@ if __name__ == "__main__":
 			batch_size = batch_size, 
 			num_workers = 2, 
 			shuffle = True, 
-		) 
+		)
 		
 		# Getting a sample image from the test data loader 
-		x, y = next(iter(val_loader)) 
-		x = x.to(device) 
+		# x, y = next(iter(val_loader)) 
+		# x = x.to(device) 
 		
+		all_predictions = []
+		all_gt_boxes = []
 		model.eval() 
+
 		with torch.no_grad(): 
 			# Getting the model predictions 
-			output = model(x) 
-			# Getting the bounding boxes from the predictions 
-			bboxes = [[] for _ in range(x.shape[0])] 
-			anchors = ( 
-					torch.tensor(ANCHORS) 
-						* torch.tensor(s).unsqueeze(1).unsqueeze(1).repeat(1, 3, 2) 
-					).to(device) 
-		
-			# Getting bounding boxes for each scale 
-			for i in range(3): 
-				batch_size, A, S, _, _ = output[i].shape 
-				anchor = anchors[i] 
-				boxes_scale_i = convert_cells_to_bboxes( 
-									output[i], anchor, s=S, is_predictions=True
-								) 
-				for idx, (box) in enumerate(boxes_scale_i): 
-					bboxes[idx] += box 
-		model.train() 
-		
-		# Plotting the image with bounding boxes for each image in the batch 
-		for i in range(batch_size): 
-			# Applying non-max suppression to remove overlapping bounding boxes 
-			nms_boxes = nms(bboxes[i], iou_threshold=0.5, threshold=0.6) 
-			# Plotting the image with bounding boxes 
-			plot_image(x[i].permute(1,2,0).detach().cpu(), nms_boxes, i)
+			for x, y in val_loader:
+				x = x.to(device) 
+				batch_size = x.shape[0]
+				# Getting the model predictions 
+				output = model(x) 
+				# Getting the bounding boxes from the predictions 
+				bboxes = [[] for _ in range(x.shape[0])] 
+				anchors = ( 
+						torch.tensor(ANCHORS) 
+							* torch.tensor(s).unsqueeze(1).unsqueeze(1).repeat(1, 3, 2) 
+						).to(device) 
+			
+				# Getting bounding boxes for each scale 
+				for i in range(3): 
+					batch_size, A, S, _, _ = output[i].shape 
+					anchor = anchors[i] 
+					boxes_scale_i = convert_cells_to_bboxes( 
+										output[i], anchor, s=S, is_predictions=True
+									) 
+					for idx, (box) in enumerate(boxes_scale_i): 
+						bboxes[idx] += box 
+			# Plotting the image with bounding boxes for each image in the batch 
+				for i in range(0,batch_size,10): 
+					# Applying non-max suppression to remove overlapping bounding boxes 
+					nms_boxes = nms(bboxes[i], iou_threshold=0.5, threshold=0.6) 
+					all_predictions.append(nms_boxes)
+					# Plotting the image with bounding boxes 
+					plot_image(x[i].permute(1,2,0).detach().cpu(), nms_boxes, i)
+
+		# Calculating mean average precision
+		precisions, recall, mean_average_precision = mean_average_precision(all_gt_boxes, all_predictions)
