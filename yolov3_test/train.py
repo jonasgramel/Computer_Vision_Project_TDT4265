@@ -83,10 +83,10 @@ def plot_image(image, boxes, image_index):
   
     # Add image to plot 
     ax.imshow(img) 
-    print("Number of boxes: ", len(boxes))
+    # print("Number of boxes: ", len(boxes))
     # Plotting the bounding boxes and labels over the image 
     for box in boxes: 
-        print("Box: ", box)
+        # print("Box: ", box)
         # Get the class from the box 
         class_pred = box[0] 
         # Get the center x and y coordinates 
@@ -442,6 +442,7 @@ if __name__ == "__main__":
 					all_predictions.append(nms_boxes)
 					# Plotting the image with bounding boxes 
 					plot_image(x[i].permute(1,2,0).detach().cpu(), nms_boxes, i)
-
+		print("GT boxes: ", all_gt_boxes)
+		print("Predictions: ", all_predictions)
 		# Calculating mean average precision
 		precisions, recall, mean_average_precision = mean_average_precision(all_gt_boxes, all_predictions)
