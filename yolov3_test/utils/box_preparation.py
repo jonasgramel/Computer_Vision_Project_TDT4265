@@ -66,7 +66,7 @@ def yolo_to_xy_coords(bboxes):
     height, width = 416, 416
     for i, bbox in enumerate(bboxes):
         if bbox is not None:       # Check if boundings boxes present
-            class_id, confidence_score, x_center, y_center, bbox_width, bbox_height = bbox
+            x_center, y_center, bbox_width, bbox_height = bbox
 
             # Convert YOLO format to pixel coordinates
             x_center, y_center = int(x_center * width), int(y_center * height)
