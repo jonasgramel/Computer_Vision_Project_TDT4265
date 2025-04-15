@@ -440,6 +440,8 @@ if __name__ == "__main__":
 					# Applying non-max suppression to remove overlapping bounding boxes 
 					nms_boxes = nms(bboxes[i], iou_threshold=0.5, threshold=0.6) 
 					all_predictions.append(nms_boxes)
+					gt_boxes = convert_cells_to_bboxes(y[i], anchors, s=GRID_SIZE, is_predictions=False)
+					all_gt_boxes.append(gt_boxes)
 					# Plotting the image with bounding boxes 
 					plot_image(x[i].permute(1,2,0).detach().cpu(), nms_boxes, i)
 		print("GT boxes: ", all_gt_boxes)
