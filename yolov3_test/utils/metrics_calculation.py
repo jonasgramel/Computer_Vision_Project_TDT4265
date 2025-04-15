@@ -350,8 +350,8 @@ def mean_average_precision(ground_truth_boxes, predicted_boxes):
     confidence_scores = []
 
     for i in range(len(ground_truth_boxes)):
-        predicted_boxes = yolo_to_xy_coords(predicted_boxes[i])
-        gt_boxes = yolo_to_xy_coords(ground_truth_boxes[i])
+        predicted_boxes = yolo_to_xy_coords(predicted_boxes[i][:,2:])
+        gt_boxes = yolo_to_xy_coords(ground_truth_boxes[i][:,1:])
         confidence_scores.append(predicted_boxes[:, 1])
 
     precisions, recalls = get_precision_recall_curve(
