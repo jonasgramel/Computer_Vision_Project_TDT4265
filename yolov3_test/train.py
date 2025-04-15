@@ -50,7 +50,7 @@ batch_size = 32
 learning_rate = 1e-5
 
 # Number of epochs for training 
-epochs = 10
+epochs = 20
 
 # Image size 
 image_size = 416
@@ -349,7 +349,8 @@ if __name__ == "__main__":
 			# Saving the model
 		if save_model:
 			save_checkpoint(model, optimizer, filename=f"checkpoint.pth.tar")
-		
+
+		plt.legend()
 		plt.savefig("figures/error_plot")
 
 	if test_yolov3:
