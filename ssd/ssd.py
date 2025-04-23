@@ -1,7 +1,7 @@
 import torch
 from torchvision.models.detection import ssd300_vgg16
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
-
+from torchvision.ops import box_iou
 
 from utils.box_preparation import convert_cells_to_bboxes
 from utils.file_reading import Dataset
@@ -136,6 +136,7 @@ val_loader = torch.utils.data.DataLoader(
 )
 
 images, targets = next(iter(loader))
+print(targets[0])
 
 trainssd = True
 print("halla utenfor main")
@@ -178,6 +179,13 @@ if __name__ == "__main__":
 
             metric.update(outputs, targets)
 
+        
+        pred_boxes = outputs[0]['boxes'].cpu()
+        gt_boxes = targets[0]['boxes'].cpu()
+
+        ious = box_iou(pred_boxes, gt_boxes)
+        print("IoU Matrix:\n", ious)
+
         results = metric.compute()
 
     print("mAP at IoU=0.50:0.95: ", results['map'])
@@ -188,4 +196,7 @@ if __name__ == "__main__":
         print(f"precision: {precision:.4f}, recall: {recall:.4f}")
     else:
         print("No true positives detected — precision/recall not available.")    
-    print("recall: ", results['recall'][0].mean().item())
+    if 'recall' in results and results['recall'].numel() > 0:
+        print("recall: ", results['recall'][0].mean().item())
+    else:
+        print("Recall not available — likely no matched predictions.")
