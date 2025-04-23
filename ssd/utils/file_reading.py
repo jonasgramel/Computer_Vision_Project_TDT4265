@@ -102,6 +102,10 @@ class Dataset(torch.utils.data.Dataset):
 			image = transformed['image']
 			boxes = transformed['bboxes']
 			labels = transformed['class_labels']
+		# Convert normalized VOC boxes to absolute pixel coords (300x300)
+		boxes = np.array(boxes)  # shape: (N, 4)
+		boxes[:, [0, 2]] *= self.image_size  # x_min, x_max
+		boxes[:, [1, 3]] *= self.image_size  # y_min, y_max
 
 		# Ensure non-empty, well-formed tensors
 		if len(boxes) == 0:
