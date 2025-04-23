@@ -5,9 +5,124 @@ import numpy as np
 from PIL import Image, ImageFile 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 from utils.metrics_calculation import iou
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+
+class Dataset(torch.utils.data.Dataset):
+	"""
+    This class with following functions is gathered from Geeks for Geeks: https://www.geeksforgeeks.org/yolov3-from-scratch-using-pytorch/ 
+    Accessed: 09-04-2025
+    """
+
+	def __init__(
+			self, image_dir, label_dir,
+			image_size=300,
+			num_classes=1, transform=None
+	):
+
+		# Read the csv file with image names and labels 
+		self.label_list = [filename for filename in sorted(os.listdir(label_dir))]
+		# Image and label directories 
+		self.image_dir = image_dir 
+		self.label_dir = label_dir 
+		# Image size 
+		self.image_size = image_size 
+		# Transformations 
+		self.transform = A.Compose([
+			A.Resize(300, 300),
+			A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+			ToTensorV2()
+		], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
+		# Number of classes 
+		self.num_classes = num_classes 
+		# Ignore IoU threshold 
+		self.ignore_iou_thresh = 0.5
+
+	def __len__(self): 
+		return len(self.label_list) 
+	
+	def __getitem__(self, idx):
+		# Getting the label path
+		label_path = os.path.join(self.label_dir, self.label_list[idx])
+
+		# Load YOLO-format boxes: x_center, y_center, width, height, class_label
+		yolo_boxes = np.roll(np.loadtxt(fname=label_path, delimiter=" ", ndmin=2), 4, axis=1).tolist()
+
+		# Getting the image path
+		img_path = os.path.join(self.image_dir, os.path.splitext(self.label_list[idx])[0] + ".png")
+		image = np.array(Image.open(img_path).convert("RGB"))
+
+		# Get image dimensions
+		if "rgb" in img_path:
+			img_width = 1920
+			img_height = 1208
+		elif "lidar" in img_path:
+			img_width = 1024
+			img_height = 128
+
+		# Convert YOLO to Pascal VOC
+		boxes = []
+		labels = []
+		for box in yolo_boxes:
+			x_center, y_center, width, height, class_label = box
+			# After loading image (before transforms)
+			image = np.array(Image.open(img_path).convert("RGB"))
+
+			# Resize box coordinates to match transform size (300x300)
+			x_min = (x_center - width / 2)
+			y_min = (y_center - height / 2)
+			x_max = (x_center + width / 2)
+			y_max = (y_center + height / 2)
+
+			#scale_x = 300 / img_width
+			#scale_y = 300 / img_height
+
+			#x_min = (x_center - width / 2) * img_width * scale_x
+			#y_min = (y_center - height / 2) * img_height * scale_y
+			#x_max = (x_center + width / 2) * img_width * scale_x
+			#y_max = (y_center + height / 2) * img_height * scale_y
+
+			#x_min = x_min / 300
+			#y_min = y_min / 300
+			#x_max = x_max / 300
+			#y_max = y_max / 300
+
+			boxes.append([x_min, y_min, x_max, y_max])
+			#labels.append(int(class_label))  # usually 0 or 1 for binary
+			labels.append(int(class_label) + 1)
+
+
+		# Apply transforms after preparing the boxes
+		if self.transform:
+			transformed = self.transform(
+				image=image,
+				bboxes=boxes,
+				class_labels=labels
+			)
+			image = transformed['image']
+			boxes = transformed['bboxes']
+			labels = transformed['class_labels']
+
+		# Ensure non-empty, well-formed tensors
+		if len(boxes) == 0:
+			boxes = torch.zeros((0, 4), dtype=torch.float32)
+			labels = torch.zeros((0,), dtype=torch.int64)
+		else:
+			boxes = torch.tensor(boxes, dtype=torch.float32)
+			labels = torch.tensor(labels, dtype=torch.int64)
+
+		target = {
+			'boxes': boxes,
+			'labels': labels
+		}
+
+		return image, target
+
+
+
 
 # Create a dataset class to load the images and labels from the folder 
-class Dataset(torch.utils.data.Dataset): 
+class decomissioned_Dataset(torch.utils.data.Dataset): 
 	"""
     This class with following functions is gathered from Geeks for Geeks: https://www.geeksforgeeks.org/yolov3-from-scratch-using-pytorch/ 
     Accessed: 09-04-2025
@@ -64,7 +179,7 @@ class Dataset(torch.utils.data.Dataset):
 		# Below assumes 3 scale predictions (as paper) and same num of anchors per scale 
 		# target : [probabilities, x, y, width, height, class_label] 
 		targets = [torch.zeros((self.num_anchors_per_scale, s, s, 6)) 
-				for s in self.grid_sizes] 
+				for s in self.grid_sizes]
 		
 		# Identify anchor box and cell for each bounding box 
 		for box in bboxes: 
@@ -74,7 +189,7 @@ class Dataset(torch.utils.data.Dataset):
 							is_pred=False) 
 			# Selecting the best anchor box 
 			anchor_indices = iou_anchors.argsort(descending=True, dim=0) 
-			x, y, width, height, class_label = box 
+			x, y, width, height, class_label = box
 
 			# At each scale, assigning the bounding box to the 
 			# best matching anchor box 
