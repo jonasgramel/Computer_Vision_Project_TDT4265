@@ -65,14 +65,12 @@ class Dataset(torch.utils.data.Dataset):
 		labels = []
 		for box in yolo_boxes:
 			x_center, y_center, width, height, class_label = box
-			# After loading image (before transforms)
-			image = np.array(Image.open(img_path).convert("RGB"))
 
 			# Resize box coordinates to match transform size (300x300)
-			x_min = (x_center - width / 2)
-			y_min = (y_center - height / 2)
-			x_max = (x_center + width / 2)
-			y_max = (y_center + height / 2)
+			x_min = (x_center - width / 2)*img_width
+			y_min = (y_center - height / 2)*img_height
+			x_max = (x_center + width / 2)*img_width
+			y_max = (y_center + height / 2)*img_height
 
 			#scale_x = 300 / img_width
 			#scale_y = 300 / img_height

@@ -72,7 +72,7 @@ train_transform = A.Compose(
 	], 
 	# Augmentation for bounding boxes 
 	bbox_params=A.BboxParams( 
-					format="pascal_voc", 
+					format="yolo", 
 					min_visibility=0.4, 
 					label_fields=[] 
 				) 
@@ -96,7 +96,7 @@ test_transform = A.Compose(
 	], 
 	# Augmentation for bounding boxes 
 	bbox_params=A.BboxParams(
-					format="pascal_voc", 
+					format="yolo", 
 					min_visibility=0.4, 
 					label_fields=[] 
 				)
@@ -173,9 +173,9 @@ if __name__ == "__main__":
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
             outputs = pretrained_model(images)
-            print(f"Predictions in batch: {[len(o['boxes']) for o in outputs]}")
-            for output in outputs:
-                print("Scores:", output['scores'].cpu().numpy())
+            # print(f"Predictions in batch: {[len(o['boxes']) for o in outputs]}")
+            # for output in outputs:
+            #     print("Scores:", output['scores'].cpu().numpy())
 
             metric.update(outputs, targets)
 
