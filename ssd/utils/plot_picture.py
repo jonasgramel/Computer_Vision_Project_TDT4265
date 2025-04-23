@@ -42,5 +42,6 @@ def plot_image(image, boxes, image_index):
           
         ax.add_patch(rect) 
   
-    # Save the plot 
-    plt.savefig("figures/figure" + str(image_index))
+    # Save the plot
+    fig_name = "figures/figure" + str(image_index) + ".png"
+    plt.savefig(fig_name, bbox_inches='tight')
