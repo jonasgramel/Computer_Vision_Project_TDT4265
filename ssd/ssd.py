@@ -161,19 +161,20 @@ if __name__ == "__main__":
 
             print(f"Epoch {epoch} - Loss: {losses.item():.4f}")
         
+    pretrained_model.eval()
     metric = MeanAveragePrecision()
     metric.to(device)
-    for images, targets in val_loader:
-        images = list(image.to(device) for image in images)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-        # Forward pass
-        outputs = pretrained_model(images)
+    with torch.no_grad():
+        for images, targets in val_loader:
+            images = list(image.to(device) for image in images)
+            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-        # Update the metric with the predictions and targets
-        metric.update(outputs, targets)
+            outputs = pretrained_model(images)
+            metric.update(outputs, targets)
 
-    results = metric.compute()
+        results = metric.compute()
+        
     print("mAP at IoU=0.50:0.95: ", results['map'])
     print("mAP at IoU=0.50: ", results['map_50'])
     print("precision: ", results['precision'][0].mean().item())
