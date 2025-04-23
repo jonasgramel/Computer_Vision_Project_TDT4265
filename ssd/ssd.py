@@ -6,6 +6,8 @@ from torchvision.ops import box_iou
 from utils.box_preparation import convert_cells_to_bboxes
 from utils.file_reading import Dataset
 from utils.metrics_calculation import mean_average_precision
+from utils.plot_picture import plot_image
+
 import tqdm
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
@@ -151,11 +153,11 @@ images, targets = next(iter(loader))
 print(targets[0])
 
 trainssd = True
-print("halla utenfor main")
+
 if __name__ == "__main__":
-    print("halla i main før train")
+
     if trainssd:
-        print("halla")
+        print("♫Training Montage♫ by Vince DiCola starts playing...")
         pretrained_model.to(device)
         pretrained_model.train()
 
@@ -174,12 +176,14 @@ if __name__ == "__main__":
                 optimizer.step()
 
             print(f"Epoch {epoch} - Loss: {losses.item():.4f}")
+        print("Dragoooo! Dragooooooo! Dragoooooooooooo!")
         
     pretrained_model.eval()
     metric = MeanAveragePrecision()
     metric.to(device)
 
     with torch.no_grad():
+        counter = 0
         for images, targets in val_loader:
             images = list(image.to(device) for image in images)
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
@@ -192,6 +196,24 @@ if __name__ == "__main__":
 
             metric.update(outputs, targets)
 
+            if counter == 0:
+                image_np = images[0].permute(1, 2, 0).cpu().numpy()  # convert to HWC format
+
+                pred_boxes = outputs[0]['boxes'].cpu().numpy()
+                pred_labels = outputs[0]['labels'].cpu().numpy()
+                pred_scores = outputs[0]['scores'].cpu().numpy()
+
+                # Create YOLO-like format expected by plot_image: [class, score, x_center, y_center, width, height]
+                formatted_boxes = []
+                for box, label, score in zip(pred_boxes, pred_labels, pred_scores):
+                    x_min, y_min, x_max, y_max = box
+                    width = x_max - x_min
+                    height = y_max - y_min
+                    x_center = x_min + width / 2
+                    y_center = y_min + height / 2
+                    formatted_boxes.append([label, score, x_center / 300, y_center / 300, width / 300, height / 300])  # normalize to 300x300
+
+                plot_image(image_np, formatted_boxes, image_index=0)
 
         pred_boxes = outputs[0]['boxes'].cpu()
         # filtered_preds = [filter_predictions(p, score_thresh=0.5) for p in pred_boxes]
