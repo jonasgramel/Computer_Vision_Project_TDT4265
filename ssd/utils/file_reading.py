@@ -51,14 +51,7 @@ class Dataset(torch.utils.data.Dataset):
 		# Getting the image path
 		img_path = os.path.join(self.image_dir, os.path.splitext(self.label_list[idx])[0] + ".png")
 		image = np.array(Image.open(img_path).convert("RGB"))
-
-		# Get image dimensions
-		if "rgb" in img_path:
-			img_width = 1920
-			img_height = 1208
-		elif "lidar" in img_path:
-			img_width = 1024
-			img_height = 128
+		img_width, img_height = image.size
 
 		# Convert YOLO to Pascal VOC
 		boxes = []
@@ -102,8 +95,8 @@ class Dataset(torch.utils.data.Dataset):
 			labels = transformed['class_labels']
 		# Convert normalized VOC boxes to absolute pixel coords (300x300)
 		boxes = np.array(boxes)  # shape: (N, 4)
-		boxes[:, [0, 2]] *= self.image_size  # x_min, x_max
-		boxes[:, [1, 3]] *= self.image_size  # y_min, y_max
+		# boxes[:, [0, 2]] *= self.image_size  # x_min, x_max
+		# boxes[:, [1, 3]] *= self.image_size  # y_min, y_max
 
 		# Ensure non-empty, well-formed tensors
 		if len(boxes) == 0:
