@@ -135,6 +135,18 @@ val_loader = torch.utils.data.DataLoader(
     collate_fn=collate_fn
 )
 
+def filter_predictions(pred, score_thresh=0.5):
+    boxes = pred['boxes']
+    scores = pred['scores']
+    labels = pred['labels']
+
+    keep = scores > score_thresh
+    return {
+        'boxes': boxes[keep],
+        'scores': scores[keep],
+        'labels': labels[keep]
+    }
+
 images, targets = next(iter(loader))
 print(targets[0])
 
@@ -173,14 +185,16 @@ if __name__ == "__main__":
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
             outputs = pretrained_model(images)
+            outputs = [filter_predictions(o) for o in outputs]
             # print(f"Predictions in batch: {[len(o['boxes']) for o in outputs]}")
             # for output in outputs:
             #     print("Scores:", output['scores'].cpu().numpy())
 
             metric.update(outputs, targets)
 
-        
+
         pred_boxes = outputs[0]['boxes'].cpu()
+        # filtered_preds = [filter_predictions(p, score_thresh=0.5) for p in pred_boxes]
         gt_boxes = targets[0]['boxes'].cpu()
 
         ious = box_iou(pred_boxes, gt_boxes)
