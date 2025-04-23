@@ -172,11 +172,20 @@ if __name__ == "__main__":
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
             outputs = pretrained_model(images)
+            print(f"Predictions in batch: {[len(o['boxes']) for o in outputs]}")
+            for output in outputs:
+                print("Scores:", output['scores'].cpu().numpy())
+
             metric.update(outputs, targets)
 
         results = metric.compute()
 
     print("mAP at IoU=0.50:0.95: ", results['map'])
     print("mAP at IoU=0.50: ", results['map_50'])
-    print("precision: ", results['precision'][0].mean().item())
+    if 'precision' in results and results['precision'].numel() > 0:
+        precision = results['precision'][0].mean().item()
+        recall = results['recall'][0].mean().item()
+        print(f"precision: {precision:.4f}, recall: {recall:.4f}")
+    else:
+        print("No true positives detected — precision/recall not available.")    
     print("recall: ", results['recall'][0].mean().item())
