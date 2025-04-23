@@ -198,6 +198,7 @@ if __name__ == "__main__":
 
             if counter == 0:
                 image_np = images[0].permute(1, 2, 0).cpu().numpy()  # convert to HWC format
+                image_np = np.clip(image_np, 0, 1)  # for float images from ToTensorV2
 
                 pred_boxes = outputs[0]['boxes'].cpu().numpy()
                 pred_labels = outputs[0]['labels'].cpu().numpy()
