@@ -11,6 +11,7 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import cv2 
 import numpy as np
+np.float = float
 
 
 num_classes = 2
@@ -174,7 +175,7 @@ if __name__ == "__main__":
             metric.update(outputs, targets)
 
         results = metric.compute()
-        
+
     print("mAP at IoU=0.50:0.95: ", results['map'])
     print("mAP at IoU=0.50: ", results['map_50'])
     print("precision: ", results['precision'][0].mean().item())
