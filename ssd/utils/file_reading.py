@@ -51,7 +51,7 @@ class Dataset(torch.utils.data.Dataset):
 		# Getting the image path
 		img_path = os.path.join(self.image_dir, os.path.splitext(self.label_list[idx])[0] + ".png")
 		image = np.array(Image.open(img_path).convert("RGB"))
-		img_width, img_height = image.size
+		print(image.size)
 
 		# Convert YOLO to Pascal VOC
 		boxes = []
