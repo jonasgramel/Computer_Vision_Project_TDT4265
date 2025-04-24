@@ -187,9 +187,9 @@ if __name__ == "__main__":
                 for t in targets:
                     #print("labels:", t['labels'])
                     #print("boxes:", t['boxes'])
-                    
+
                     if torch.any(t['labels'] >= num_classes):
-                        print("❌ Label out of range:", t['labels'])
+                        print("Label out of range:", t['labels'])
                         raise ValueError("Target label exceeds num_classes - 1")
                     
                     if not torch.isfinite(t['boxes']).all():
@@ -200,6 +200,8 @@ if __name__ == "__main__":
 
 
                 loss_dict = pretrained_model(images, targets)
+                for name, value in loss_dict.items():
+                    print(f"{name}: {value}")
                 losses = sum(loss for loss in loss_dict.values())
 
                 optimizer.zero_grad()
