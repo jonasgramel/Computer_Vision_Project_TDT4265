@@ -146,7 +146,7 @@ val_loader = torch.utils.data.DataLoader(
     collate_fn=collate_fn
 )
 
-def filter_predictions(pred, score_thresh=0.1):
+def filter_predictions(pred, score_thresh=0.3):
     boxes = pred['boxes']
     scores = pred['scores']
     labels = pred['labels']
@@ -173,7 +173,8 @@ if __name__ == "__main__":
         train_losses = []
         pretrained_model.train()
 
-        visualize_dataset_sample(dataset, idx=0, figsize=(6, 6))
+        for i in range(3):
+            visualize_dataset_sample(dataset, idx=i)
 
         for epoch in tqdm.trange(num_epochs):
             epoch_loss = 0

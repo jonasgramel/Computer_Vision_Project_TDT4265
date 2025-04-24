@@ -98,4 +98,8 @@ def visualize_dataset_sample(dataset, idx=0, figsize=(6, 6)):
     ax.set_title(f"Sample #{idx} — Boxes: {len(boxes)}")
     plt.axis('off')
     plt.tight_layout()
+    os.makedirs("figures", exist_ok=True)  # Ensure the directory exists
+    save_path = f"ssd/figures/train_pic_{idx}.png"
+    plt.savefig(save_path)
     plt.show()
+    plt.close(fig)
