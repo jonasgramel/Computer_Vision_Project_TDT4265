@@ -12,6 +12,7 @@ import tqdm
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import cv2 
+import matplotlib.pyplot as plt
 import numpy as np
 np.float = float
 
@@ -19,21 +20,21 @@ np.float = float
 num_classes = 2
 device = torch.device('cuda')
 # Learning rate for training 
-learning_rate = 1e-5
+learning_rate = 5e-5
 
 # Number of epochs for training 
-num_epochs = 5
+num_epochs = 20
 
 # Image size 
 image_size = 300
 
-batch_size=8
+batch_size=32
 
 pretrained_model = ssd300_vgg16(weights="COCO_V1")
 
 # Freeze the backbone (VGG16 part)
 for param in pretrained_model.backbone.parameters():
-    param.requires_grad = False
+    param.requires_grad = True
 
 # Freeze all layers in the SSD head except for the final classifier
 for param in pretrained_model.head.parameters():
@@ -46,7 +47,7 @@ pretrained_model.head.classification_head.num_classes = num_classes
 
 optimizer = torch.optim.SGD(
     filter(lambda p: p.requires_grad, pretrained_model.parameters()), 
-    lr=0.005, momentum=0.9, weight_decay=0.0005
+    lr=0.001, momentum=0.9, weight_decay=0.0005
 )
 
 # Transform for training 
@@ -137,7 +138,7 @@ val_loader = torch.utils.data.DataLoader(
     collate_fn=collate_fn
 )
 
-def filter_predictions(pred, score_thresh=0.5):
+def filter_predictions(pred, score_thresh=0.1):
     boxes = pred['boxes']
     scores = pred['scores']
     labels = pred['labels']
@@ -155,13 +156,19 @@ print(targets[0])
 trainssd = True
 
 if __name__ == "__main__":
+    
+    pretrained_model.to(device)
 
     if trainssd:
+        
         print("♫Training Montage♫ by Vince DiCola starts playing...")
-        pretrained_model.to(device)
+        train_losses = []
         pretrained_model.train()
 
         for epoch in tqdm.trange(num_epochs):
+            epoch_loss = 0
+            n_batches = 0
+
             for images, labels in loader:
                 images = list(img.to(device) for img in images)
                 targets = [{k: v.to(device) for k, v in t.items()} for t in labels]  # 'labels' is the correct name here
@@ -175,8 +182,24 @@ if __name__ == "__main__":
                 losses.backward()
                 optimizer.step()
 
+                epoch_loss += losses.item()
+                n_batches += 1
+            
+            avg_loss = epoch_loss/n_batches
+            train_losses.append(avg_loss)
+
             print(f"Epoch {epoch} - Loss: {losses.item():.4f}")
         print("Dragoooo! Dragooooooo! Dragoooooooooooo!")
+
+        plt.figure()
+        plt.plot(range(1, num_epochs+1), train_losses, marker='o')
+        plt.title("Training Loss Curve")
+        plt.xlabel("epoch")
+        plt.ylabel("Loss")
+        plt.grid(True)
+        plt.savefig("ssd_Loss_curve.png")
+        plt.show()
+
         
     pretrained_model.eval()
     metric = MeanAveragePrecision()
@@ -184,6 +207,7 @@ if __name__ == "__main__":
 
     with torch.no_grad():
         counter = 0
+
         for images, targets in val_loader:
             images = list(image.to(device) for image in images)
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
@@ -197,14 +221,18 @@ if __name__ == "__main__":
             metric.update(outputs, targets)
 
             if counter == 0:
-                image_np = images[0].permute(1, 2, 0).cpu().numpy()  # convert to HWC format
-                image_np = np.clip(image_np, 0, 1)  # for float images from ToTensorV2
+                image_np = images[0].permute(1, 2, 0).cpu().numpy()  # Convert to HWC format
+                orig_h, orig_w = targets[0]["orig_size"].cpu().numpy()
+                image_np = np.clip(image_np, 0, 1)  # For float images from ToTensorV2
+                image_np_resized = cv2.resize(image_np, (orig_w, orig_h))
 
                 pred_boxes = outputs[0]['boxes'].cpu().numpy()
                 pred_labels = outputs[0]['labels'].cpu().numpy()
                 pred_scores = outputs[0]['scores'].cpu().numpy()
 
-                # Create YOLO-like format expected by plot_image: [class, score, x_center, y_center, width, height]
+                h, w, _ = image_np_resized.shape  # Use original image dimensions
+
+                # Create YOLO-like format expected by plot_image
                 formatted_boxes = []
                 for box, label, score in zip(pred_boxes, pred_labels, pred_scores):
                     x_min, y_min, x_max, y_max = box
@@ -212,9 +240,10 @@ if __name__ == "__main__":
                     height = y_max - y_min
                     x_center = x_min + width / 2
                     y_center = y_min + height / 2
-                    formatted_boxes.append([label, score, x_center / 300, y_center / 300, width / 300, height / 300])  # normalize to 300x300
+                    formatted_boxes.append([label, score, x_center / w, y_center / h, width / w, height / h])  # normalized to original size
 
-                plot_image(image_np, formatted_boxes, image_index=0)
+                plot_image(image_np_resized, formatted_boxes, image_index=0)
+            counter += 1
 
         pred_boxes = outputs[0]['boxes'].cpu()
         # filtered_preds = [filter_predictions(p, score_thresh=0.5) for p in pred_boxes]

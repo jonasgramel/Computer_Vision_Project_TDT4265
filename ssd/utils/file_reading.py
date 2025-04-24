@@ -115,7 +115,8 @@ class Dataset(torch.utils.data.Dataset):
 
 		target = {
 			'boxes': boxes,
-			'labels': labels
+			'labels': labels,
+			'orig_size': torch.tensor([img_height, img_width], dtype=torch.int32)
 		}
 
 		return image, target
