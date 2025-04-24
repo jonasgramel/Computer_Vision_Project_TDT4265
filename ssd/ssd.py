@@ -2,6 +2,7 @@ import torch
 from torchvision.models.detection import ssd300_vgg16
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 from torchvision.ops import box_iou
+from torchvision.models.detection.ssd import SSDClassificationHead
 
 from utils.box_preparation import convert_cells_to_bboxes
 from utils.file_reading import Dataset
@@ -18,6 +19,9 @@ np.float = float
 
 
 num_classes = 2
+in_channels=[512, 1024, 512, 256, 256, 256]
+num_anchors=[4, 6, 6, 6, 4, 4]
+
 device = torch.device('cuda')
 # Learning rate for training 
 learning_rate = 5e-5
@@ -43,7 +47,11 @@ for param in pretrained_model.head.parameters():
 for param in pretrained_model.head.classification_head.parameters():
     param.requires_grad = True  # Only train the classification head
 
-pretrained_model.head.classification_head.num_classes = num_classes
+pretrained_model.head.classification_head = SSDClassificationHead(
+    in_channels=in_channels,
+    num_anchors=num_anchors,
+    num_classes=num_classes
+)
 
 optimizer = torch.optim.SGD(
     filter(lambda p: p.requires_grad, pretrained_model.parameters()), 
@@ -75,7 +83,7 @@ train_transform = A.Compose(
 	], 
 	# Augmentation for bounding boxes 
 	bbox_params=A.BboxParams( 
-					format="yolo", 
+					format="pascal_voc", 
 					min_visibility=0.4, 
 					label_fields=[] 
 				) 
@@ -99,7 +107,7 @@ test_transform = A.Compose(
 	], 
 	# Augmentation for bounding boxes 
 	bbox_params=A.BboxParams(
-					format="yolo", 
+					format="pascal_voc", 
 					min_visibility=0.4, 
 					label_fields=[] 
 				)
@@ -113,7 +121,7 @@ dataset = Dataset(
 	#csv_file="train.csv", 
 	image_dir="/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/train", 
 	label_dir="/work/datasets/tdt4265/ad/open/Poles/lidar/labels/train", 
-	transform=test_transform 
+	transform=train_transform 
 ) 
 
 # Creating a dataloader object 
@@ -173,8 +181,10 @@ if __name__ == "__main__":
                 images = list(img.to(device) for img in images)
                 targets = [{k: v.to(device) for k, v in t.items()} for t in labels]  # 'labels' is the correct name here
 
-                if any(len(t['boxes']) == 0 for t in targets):
-                    continue
+                for t in targets:
+                    if not torch.isfinite(t['boxes']).all():
+                        print("invalid boxes:", t['boxes'])                    
+
                 loss_dict = pretrained_model(images, targets)
                 losses = sum(loss for loss in loss_dict.values())
 
