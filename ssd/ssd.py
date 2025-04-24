@@ -27,7 +27,7 @@ device = torch.device('cuda')
 learning_rate = 5e-5
 
 # Number of epochs for training 
-num_epochs = 20
+num_epochs = 10
 
 # Image size 
 image_size = 300
@@ -252,7 +252,7 @@ if __name__ == "__main__":
                     y_center = y_min + height / 2
                     formatted_boxes.append([label, score, x_center / w, y_center / h, width / w, height / h])  # normalized to original size
 
-                plot_image(image_np_resized, formatted_boxes, image_index=0)
+                plot_image(image_np_resized, formatted_boxes, pred_labels, pred_scores, image_index=0)
             counter += 1
 
         pred_boxes = outputs[0]['boxes'].cpu()
