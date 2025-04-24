@@ -1,8 +1,12 @@
 import torch
-from torchvision.models.detection import ssd300_vgg16
+import torchvision
+from torchvision.models.detection import fasterrcnn_resnet50_fpn
+from torchvision.models.detection import FasterRCNN
+from torchvision.models.detection.rpn import AnchorGenerator
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+import torchvision.models as models
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 from torchvision.ops import box_iou
-from torchvision.models.detection.ssd import SSDClassificationHead
 
 from utils.box_preparation import convert_cells_to_bboxes
 from utils.file_reading import Dataset
@@ -19,8 +23,6 @@ np.float = float
 
 
 num_classes = 2
-in_channels=[512, 1024, 512, 256, 256, 256]
-num_anchors=[4, 6, 6, 6, 4, 4]
 
 device = torch.device('cuda')
 # Learning rate for training 
@@ -35,24 +37,23 @@ image_size = 300
 
 batch_size=32
 
-pretrained_model = ssd300_vgg16(weights="COCO_V1")
-
-# Freeze the backbone (VGG16 part)
-for param in pretrained_model.backbone.parameters():
-    param.requires_grad = False
-
-# Freeze all layers in the SSD head except for the final classifier
-for param in pretrained_model.head.parameters():
-    param.requires_grad = True
-
-for param in pretrained_model.head.classification_head.parameters():
-    param.requires_grad = True  # Only train the classification head
-
-pretrained_model.head.classification_head = SSDClassificationHead(
-    in_channels=in_channels,
-    num_anchors=num_anchors,
-    num_classes=num_classes
+# Define custom anchor generator with narrow/tall aspect ratios
+anchor_generator = AnchorGenerator(
+    sizes=((32, 64, 128, 256, 512),),  # Default scales
+    aspect_ratios=((0.1, 0.2, 0.5, 1.0),)  # Add narrow/tall boxes
 )
+
+backbone = torchvision.models.detection.backbone_utils.resnet_fpn_backbone(
+    'resnet50', pretrained=True
+)
+pretrained_model = FasterRCNN(
+    backbone=backbone,
+    num_classes=num_classes,  # 1 class (snow-pole) + 1 background
+    rpn_anchor_generator=anchor_generator
+)
+
+in_features = pretrained_model.roi_heads.box_predictor.cls_score.in_features
+pretrained_model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes=num_classes)
 
 optimizer = torch.optim.SGD(
     filter(lambda p: p.requires_grad, pretrained_model.parameters()), 
@@ -162,13 +163,13 @@ def filter_predictions(pred, score_thresh=0.5):
 images, targets = next(iter(loader))
 print(targets[0])
 
-trainssd = True
+trainresnet = True
 
 if __name__ == "__main__":
     
     pretrained_model.to(device)
 
-    if trainssd:
+    if trainresnet:
         
         print("♫Training Montage♫ by Vince DiCola starts playing...")
         train_losses = []
@@ -240,7 +241,7 @@ if __name__ == "__main__":
         plt.xlabel("epoch")
         plt.ylabel("Loss")
         plt.grid(True)
-        plt.savefig("ssd_Loss_curve.png")
+        plt.savefig("resnet_Loss_curve.png")
         plt.show()
 
         
