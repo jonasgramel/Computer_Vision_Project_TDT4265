@@ -84,7 +84,7 @@ train_transform = A.Compose(
 	# Augmentation for bounding boxes 
 	bbox_params=A.BboxParams( 
 					format="pascal_voc", 
-					min_visibility=0.4, 
+					min_visibility=0.2, 
 					label_fields=[] 
 				) 
 ) 
@@ -146,7 +146,7 @@ val_loader = torch.utils.data.DataLoader(
     collate_fn=collate_fn
 )
 
-def filter_predictions(pred, score_thresh=0.3):
+def filter_predictions(pred, score_thresh=0.5):
     boxes = pred['boxes']
     scores = pred['scores']
     labels = pred['labels']
@@ -188,6 +188,7 @@ if __name__ == "__main__":
                     if not torch.isfinite(t['boxes']).all():
                         print("invalid boxes:", t['boxes'])                    
 
+
                 loss_dict = pretrained_model(images, targets)
                 losses = sum(loss for loss in loss_dict.values())
 
@@ -221,6 +222,9 @@ if __name__ == "__main__":
     with torch.no_grad():
         counter = 0
 
+        for i in range(3):
+            visualize_dataset_sample(dataset, idx=i)
+
         for images, targets in val_loader:
             images = list(image.to(device) for image in images)
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
@@ -232,7 +236,9 @@ if __name__ == "__main__":
             #     print("Scores:", output['scores'].cpu().numpy())
 
             metric.update(outputs, targets)
-
+            if counter ==3:
+                for output in pretrained_model(images[:2]):
+                    print(output['labels'], output['scores'])
             if counter == 0:
                 image_np = images[0].permute(1, 2, 0).cpu().numpy()  # Convert to HWC format
                 orig_h, orig_w = targets[0]["orig_size"].cpu().numpy()
