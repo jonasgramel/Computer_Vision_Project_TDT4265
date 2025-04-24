@@ -7,7 +7,7 @@ from torchvision.models.detection.ssd import SSDClassificationHead
 from utils.box_preparation import convert_cells_to_bboxes
 from utils.file_reading import Dataset
 from utils.metrics_calculation import mean_average_precision
-from utils.plot_picture import plot_image
+from utils.plot_picture import plot_image, visualize_dataset_sample
 
 import tqdm
 import albumentations as A
@@ -172,6 +172,8 @@ if __name__ == "__main__":
         print("♫Training Montage♫ by Vince DiCola starts playing...")
         train_losses = []
         pretrained_model.train()
+
+        visualize_dataset_sample(dataset, idx=0, figsize=(6, 6))
 
         for epoch in tqdm.trange(num_epochs):
             epoch_loss = 0

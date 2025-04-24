@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import os
+import torch
 
 
 def plot_image(image, boxes, labels, scores, image_index, orig_h=None, orig_w=None): 
@@ -67,3 +68,34 @@ def plot_image(image, boxes, labels, scores, image_index, orig_h=None, orig_w=No
     fig_name = "ssd/figures/figure" + str(image_index) + ".png"
     plt.savefig(fig_name, bbox_inches='tight')
     plt.close(fig)
+
+
+def visualize_dataset_sample(dataset, idx=0, figsize=(6, 6)):
+    image, target = dataset[idx]
+    boxes = target['boxes']
+    labels = target['labels']
+
+    # Unnormalize image (ImageNet normalization)
+    mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
+    std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
+    image = image * std + mean  # De-normalize
+    image = torch.clamp(image, 0, 1)
+
+    image_np = image.permute(1, 2, 0).cpu().numpy()
+
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
+    ax.imshow(image_np)
+
+    for box, label in zip(boxes, labels):
+        x_min, y_min, x_max, y_max = box
+        width = x_max - x_min
+        height = y_max - y_min
+        rect = patches.Rectangle((x_min, y_min), width, height,
+                                 linewidth=2, edgecolor='lime', facecolor='none')
+        ax.add_patch(rect)
+        ax.text(x_min, y_min - 2, f"Class {label.item()}", color='lime', fontsize=12, weight='bold')
+
+    ax.set_title(f"Sample #{idx} — Boxes: {len(boxes)}")
+    plt.axis('off')
+    plt.tight_layout()
+    plt.show()
