@@ -185,8 +185,8 @@ if __name__ == "__main__":
                 targets = [{k: v.to(device) for k, v in t.items()} for t in labels]  # 'labels' is the correct name here
 
                 for t in targets:
-                    print("labels:", t['labels'])
-                    print("boxes:", t['boxes'])
+                    #print("labels:", t['labels'])
+                    #print("boxes:", t['boxes'])
 
                     if not torch.isfinite(t['boxes']).all():
                         print("invalid box detected:", t['boxes'])
