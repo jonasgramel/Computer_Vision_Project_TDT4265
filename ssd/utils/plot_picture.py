@@ -64,14 +64,10 @@ def plot_image(image, boxes, labels, scores, image_index, orig_h=None, orig_w=No
         )
 
     # Save the plot
-<<<<<<< Updated upstream
     os.makedirs("figures", exist_ok=True)  # Ensure the directory exists
     fig_name = "ssd/figures/figure" + str(image_index) + ".png"
     plt.savefig(fig_name, bbox_inches='tight')
     plt.close(fig)
-=======
-    fig_name = "figures/figure" + str(image_index) + ".png"
-    plt.savefig(fig_name, bbox_inches='tight')
 
 
 def visualize_dataset_sample(dataset, idx=0, figsize=(6, 6)):
@@ -103,4 +99,3 @@ def visualize_dataset_sample(dataset, idx=0, figsize=(6, 6)):
     plt.axis('off')
     plt.tight_layout()
     plt.show()
->>>>>>> Stashed changes
