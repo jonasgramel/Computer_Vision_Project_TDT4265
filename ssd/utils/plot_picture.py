@@ -139,3 +139,40 @@ def visualize_predictions(image, prediction, figsize=(6, 6), title="Predictions"
     plt.savefig(save_path)
     plt.show()
     plt.close(fig)
+
+
+def visualize_preds_vs_gt(image, pred, gt, image_size=300):
+
+    # De-normalize
+    mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
+    std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
+    image = image * std + mean
+    image = torch.clamp(image, 0, 1)
+    image_np = image.permute(1, 2, 0).cpu().numpy()
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.imshow(image_np)
+
+    # Draw ground truth in green
+    for box in gt['boxes'].cpu():
+        x_min, y_min, x_max, y_max = box
+        rect = patches.Rectangle((x_min, y_min), x_max - x_min, y_max - y_min,
+                                 linewidth=2, edgecolor='lime', facecolor='none')
+        ax.add_patch(rect)
+
+    # Draw predictions in red
+    for box, score in zip(pred['boxes'].cpu(), pred['scores'].cpu()):
+        x_min, y_min, x_max, y_max = box
+        rect = patches.Rectangle((x_min, y_min), x_max - x_min, y_max - y_min,
+                                 linewidth=2, edgecolor='red', linestyle='--', facecolor='none')
+        ax.add_patch(rect)
+        ax.text(x_min, y_min - 4, f"{score:.2f}", color='red', fontsize=9)
+
+    ax.set_title("Green: GT, Red: Predictions")
+    plt.axis('off')
+    plt.tight_layout()
+    os.makedirs("figures", exist_ok=True)
+    save_path = f"ssd/figures/pred_vs_gt_pic.png"
+    plt.savefig(save_path)
+    plt.show()
+    plt.close(fig)

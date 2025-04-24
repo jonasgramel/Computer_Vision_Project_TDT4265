@@ -7,7 +7,7 @@ from torchvision.models.detection.ssd import SSDClassificationHead
 from utils.box_preparation import convert_cells_to_bboxes
 from utils.file_reading import Dataset
 from utils.metrics_calculation import mean_average_precision
-from utils.plot_picture import plot_image, visualize_dataset_sample, visualize_predictions
+from utils.plot_picture import plot_image, visualize_dataset_sample, visualize_predictions, visualize_preds_vs_gt
 
 import tqdm
 import albumentations as A
@@ -27,7 +27,8 @@ device = torch.device('cuda')
 learning_rate = 5e-5
 
 # Number of epochs for training 
-num_epochs = 10
+num_epochs = 50
+unfreeze_at_epoch = 10
 
 # Image size 
 image_size = 300
@@ -146,7 +147,7 @@ val_loader = torch.utils.data.DataLoader(
     collate_fn=collate_fn
 )
 
-def filter_predictions(pred, score_thresh=0.5):
+def filter_predictions(pred, score_thresh=0.05):
     boxes = pred['boxes']
     scores = pred['scores']
     labels = pred['labels']
@@ -171,12 +172,14 @@ if __name__ == "__main__":
         
         print("♫Training Montage♫ by Vince DiCola starts playing...")
         train_losses = []
-        pretrained_model.train()
 
         for i in range(3):
             visualize_dataset_sample(dataset, idx=i)
 
-        for epoch in tqdm.trange(num_epochs):
+        for epoch in tqdm.trange(num_epochs):        
+            
+            pretrained_model.train()
+
             epoch_loss = 0
             n_batches = 0
 
@@ -205,7 +208,7 @@ if __name__ == "__main__":
 
                     if v.item() > 1000:
                         print(f"🔥 Suspiciously large {k} loss: {v.item()}")
-                        
+
                 losses = sum(loss for loss in loss_dict.values())
 
                 optimizer.zero_grad()
@@ -219,6 +222,16 @@ if __name__ == "__main__":
             train_losses.append(avg_loss)
 
             print(f"Epoch {epoch} - Loss: {losses.item():.4f}")
+
+            if epoch == unfreeze_at_epoch:
+                print("Unfreezing the backbone. Everybody Chill! (not)")
+                for param in pretrained_model.backbone.parameters():
+                    param.requires_grad = True
+                optimizer = torch.optim.SGD(
+                    filter(lambda p: p.requires_grad, pretrained_model.parameters()), 
+                    lr=1e-4, momentum=0.9, weight_decay=0.0005
+                )
+
         print("Dragoooo! Dragooooooo! Dragoooooooooooo!")
 
         plt.figure()
@@ -288,6 +301,14 @@ if __name__ == "__main__":
 
     
     visualize_predictions(images[0].cpu(), outputs[0])
+
+    images, targets = next(iter(val_loader))
+    images = [img.to(device) for img in images]
+    with torch.no_grad():
+        outputs = pretrained_model(images)
+        outputs = [filter_predictions(o, score_thresh=0.05) for o in outputs]
+
+    visualize_preds_vs_gt(images[0].cpu(), outputs[0], targets[0])
 
     print("mAP at IoU=0.50:0.95: ", results['map'])
     print("mAP at IoU=0.50: ", results['map_50'])
