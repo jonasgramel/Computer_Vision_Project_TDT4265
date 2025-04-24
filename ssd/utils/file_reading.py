@@ -87,7 +87,8 @@ class Dataset(torch.utils.data.Dataset):
 
 			boxes.append([x_min, y_min, x_max, y_max])
 			#labels.append(int(class_label))  # usually 0 or 1 for binary
-			labels.append(int(class_label) + 1)
+			mapped_label = 1 if int(class_label) == 0 else int(class_label)
+			labels.append(int(mapped_label))
 
 
 		# Apply transforms after preparing the boxes

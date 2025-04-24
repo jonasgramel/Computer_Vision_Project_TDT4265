@@ -131,7 +131,7 @@ def visualize_predictions(image, prediction, figsize=(6, 6), title="Predictions"
         ax.text(x_min, y_min - 5, f"Class {label.item()} ({score:.2f})",
                 color='red', fontsize=10, weight='bold')
 
-    ax.set_title(f"Sample #{idx} — Boxes: {len(boxes)}")
+    ax.set_title(title)
     plt.axis('off')
     plt.tight_layout()
     os.makedirs("figures", exist_ok=True)  # Ensure the directory exists

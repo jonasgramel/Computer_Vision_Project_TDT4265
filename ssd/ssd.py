@@ -7,7 +7,7 @@ from torchvision.models.detection.ssd import SSDClassificationHead
 from utils.box_preparation import convert_cells_to_bboxes
 from utils.file_reading import Dataset
 from utils.metrics_calculation import mean_average_precision
-from utils.plot_picture import plot_image, visualize_dataset_sample
+from utils.plot_picture import plot_image, visualize_dataset_sample, visualize_predictions
 
 import tqdm
 import albumentations as A
@@ -185,8 +185,14 @@ if __name__ == "__main__":
                 targets = [{k: v.to(device) for k, v in t.items()} for t in labels]  # 'labels' is the correct name here
 
                 for t in targets:
+                    print("labels:", t['labels'])
+                    print("boxes:", t['boxes'])
+
                     if not torch.isfinite(t['boxes']).all():
-                        print("invalid boxes:", t['boxes'])                    
+                        print("invalid box detected:", t['boxes'])
+
+                    if not torch.isfinite(t['labels']).all():
+                        print("invalid label detected:", t['labels'])             
 
 
                 loss_dict = pretrained_model(images, targets)
@@ -221,9 +227,6 @@ if __name__ == "__main__":
 
     with torch.no_grad():
         counter = 0
-
-        for i in range(3):
-            visualize_dataset_sample(dataset, idx=i)
 
         for images, targets in val_loader:
             images = list(image.to(device) for image in images)
@@ -272,6 +275,9 @@ if __name__ == "__main__":
         print("IoU Matrix:\n", ious)
 
         results = metric.compute()
+
+    
+    visualize_predictions(images[0].cpu(), outputs[0])
 
     print("mAP at IoU=0.50:0.95: ", results['map'])
     print("mAP at IoU=0.50: ", results['map_50'])
