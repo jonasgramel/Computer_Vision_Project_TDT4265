@@ -101,6 +101,24 @@ class Dataset(torch.utils.data.Dataset):
 			image = transformed['image']
 			boxes = transformed['bboxes']
 			labels = transformed['class_labels']
+
+		# Clamp boxes to minimum size to avoid zero/near-zero width or height
+		MIN_SIZE = 1.0  # pixel minimum
+
+		boxes_clamped = []
+		for b in boxes:
+			x_min, y_min, x_max, y_max = b
+			width = max(x_max - x_min, MIN_SIZE)
+			height = max(y_max - y_min, MIN_SIZE)
+
+			# Recompute x_max/y_max to match clamped size
+			x_max = x_min + width
+			y_max = y_min + height
+
+			boxes_clamped.append([x_min, y_min, x_max, y_max])
+		boxes = torch.tensor(boxes_clamped, dtype=torch.float32)
+		labels = torch.tensor(labels, dtype=torch.int64)
+		
 		# Convert normalized VOC boxes to absolute pixel coords (300x300)
 		boxes = np.array(boxes)  # shape: (N, 4)
 		# boxes[:, [0, 2]] *= self.image_size  # x_min, x_max
