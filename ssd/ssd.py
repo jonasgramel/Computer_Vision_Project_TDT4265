@@ -38,7 +38,7 @@ pretrained_model = ssd300_vgg16(weights="COCO_V1")
 
 # Freeze the backbone (VGG16 part)
 for param in pretrained_model.backbone.parameters():
-    param.requires_grad = True
+    param.requires_grad = False
 
 # Freeze all layers in the SSD head except for the final classifier
 for param in pretrained_model.head.parameters():
@@ -185,8 +185,6 @@ if __name__ == "__main__":
                 targets = [{k: v.to(device) for k, v in t.items()} for t in labels]  # 'labels' is the correct name here
 
                 for t in targets:
-                    #print("labels:", t['labels'])
-                    #print("boxes:", t['boxes'])
 
                     if torch.any(t['labels'] >= num_classes):
                         print("Label out of range:", t['labels'])
@@ -200,8 +198,14 @@ if __name__ == "__main__":
 
 
                 loss_dict = pretrained_model(images, targets)
-                for name, value in loss_dict.items():
-                    print(f"{name}: {value}")
+                for k, v in loss_dict.items():
+                    if not torch.isfinite(v):
+                        print(f"🚨 Non-finite {k} loss: {v}")
+                        raise RuntimeError("Loss exploded")
+
+                    if v.item() > 1000:
+                        print(f"🔥 Suspiciously large {k} loss: {v.item()}")
+                        
                 losses = sum(loss for loss in loss_dict.values())
 
                 optimizer.zero_grad()
