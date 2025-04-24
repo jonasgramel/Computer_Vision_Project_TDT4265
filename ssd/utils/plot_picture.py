@@ -103,3 +103,39 @@ def visualize_dataset_sample(dataset, idx=0, figsize=(6, 6)):
     plt.savefig(save_path)
     plt.show()
     plt.close(fig)
+
+
+def visualize_predictions(image, prediction, figsize=(6, 6), title="Predictions"):
+    # Unnormalize image (ImageNet)
+    mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
+    std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
+    image = image * std + mean
+    image = torch.clamp(image, 0, 1)
+
+    image_np = image.permute(1, 2, 0).cpu().numpy()
+
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
+    ax.imshow(image_np)
+
+    boxes = prediction['boxes'].cpu()
+    scores = prediction['scores'].cpu()
+    labels = prediction['labels'].cpu()
+
+    for box, label, score in zip(boxes, labels, scores):
+        x_min, y_min, x_max, y_max = box
+        width = x_max - x_min
+        height = y_max - y_min
+        rect = patches.Rectangle((x_min, y_min), width, height,
+                                 linewidth=2, edgecolor='red', facecolor='none')
+        ax.add_patch(rect)
+        ax.text(x_min, y_min - 5, f"Class {label.item()} ({score:.2f})",
+                color='red', fontsize=10, weight='bold')
+
+    ax.set_title(f"Sample #{idx} — Boxes: {len(boxes)}")
+    plt.axis('off')
+    plt.tight_layout()
+    os.makedirs("figures", exist_ok=True)  # Ensure the directory exists
+    save_path = f"ssd/figures/prediction_pic.png"
+    plt.savefig(save_path)
+    plt.show()
+    plt.close(fig)
