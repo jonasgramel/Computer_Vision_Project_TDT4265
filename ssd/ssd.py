@@ -187,7 +187,11 @@ if __name__ == "__main__":
                 for t in targets:
                     #print("labels:", t['labels'])
                     #print("boxes:", t['boxes'])
-
+                    
+                    if torch.any(t['labels'] >= num_classes):
+                        print("❌ Label out of range:", t['labels'])
+                        raise ValueError("Target label exceeds num_classes - 1")
+                    
                     if not torch.isfinite(t['boxes']).all():
                         print("invalid box detected:", t['boxes'])
 

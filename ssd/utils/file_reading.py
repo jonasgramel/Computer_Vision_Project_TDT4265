@@ -116,9 +116,10 @@ class Dataset(torch.utils.data.Dataset):
 			y_max = y_min + height
 
 			boxes_clamped.append([x_min, y_min, x_max, y_max])
+			
 		boxes = torch.tensor(boxes_clamped, dtype=torch.float32)
 		labels = torch.tensor(labels, dtype=torch.int64)
-		
+
 		# Convert normalized VOC boxes to absolute pixel coords (300x300)
 		boxes = np.array(boxes)  # shape: (N, 4)
 		# boxes[:, [0, 2]] *= self.image_size  # x_min, x_max
