@@ -265,7 +265,7 @@ def filter_predictions(pred, score_thresh=0.5):
 images, targets = next(iter(loader))
 print(targets[0])
 
-trainresnet = False
+trainresnet = True
 
 if __name__ == "__main__":
     
@@ -517,4 +517,4 @@ if __name__ == "__main__":
 
 
 
-    predict(pretrained_model, image_size, "resnet/predictions", device='cuda')
+    # predict(pretrained_model, image_size, "resnet/predictions", device='cuda')
