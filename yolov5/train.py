@@ -3,6 +3,7 @@ from tools.file_reading import Dataset, collate_fn#load_images_and_labels,
 from tools.transforms import train_transform, test_transform
 import torch
 import torch.nn as nn
+from tools.visualize import visualize_prediction
 
 # from torchvision.ops import nms, box_iou
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
@@ -84,8 +85,8 @@ def validation_loop(model, val_loader, device):
     for images, targets in tqdm(val_loader, desc="Validating"):
         images = list(images)
         targets = list(targets)
-        
-        for image, target in zip(images, targets):
+
+        for i, (image, target) in enumerate(zip(images, targets)):
             image = image.to(device).unsqueeze(0)
             # targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
             target = {k: v.to(device) for k, v in target.items()}
@@ -105,7 +106,9 @@ def validation_loop(model, val_loader, device):
                     'scores': output[:, 4],
                     'labels': output[:, 5].long() if output.shape[1] > 5 else torch.zeros_like(output[:, 4]).long()
                 }
-        
+            
+            if i < 3:
+                visualize_prediction(image.squeeze(0), pred, target)
         # Update metrics
             metrics.update([pred], [target])
     
