@@ -8,10 +8,124 @@ from utils.metrics_calculation import iou
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
-
+import os
+import numpy as np
+from PIL import Image
+import torch
+from torch.utils.data import Dataset
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 
 
 class Dataset(torch.utils.data.Dataset):
+    """
+    This class is designed to handle images and labels for training and testing.
+    """
+
+    def __init__(
+            self, image_dir, label_dir=None,
+            image_size=224,
+            num_classes=1, transform=None
+    ):
+        """
+        Initializes the Dataset with image directory, label directory, and transformations.
+
+        Args:
+            image_dir (str): Path to the image directory.
+            label_dir (str or None): Path to the label directory. None if no labels available (e.g., test set).
+            image_size (int): Target image size.
+            num_classes (int): Number of classes in the dataset.
+            transform (callable): Transformations to apply to the images and bounding boxes.
+        """
+        self.image_dir = image_dir
+        self.label_dir = label_dir
+        self.image_size = image_size
+        self.num_classes = num_classes
+        self.transform = transform
+
+        # Get the list of label files (if label_dir is provided)
+        if label_dir:
+            self.label_list = [filename for filename in sorted(os.listdir(label_dir))]
+        else:
+            self.label_list = [filename for filename in sorted(os.listdir(image_dir))]  # Just use image list
+
+    def __len__(self):
+        return len(self.label_list)
+
+    def __getitem__(self, idx):
+        # Getting the image path (ensure it has correct extension)
+        img_filename = self.label_list[idx]
+        img_path = os.path.join(self.image_dir, os.path.splitext(img_filename)[0] + ".png")  # Change to the correct image extension
+        try:
+            image = np.array(Image.open(img_path).convert("RGB"))
+        except FileNotFoundError:
+            print(f"Image not found: {img_path}")
+            raise
+
+        # Get image dimensions
+        if "rgb" in img_path:
+            img_width = 1920
+            img_height = 1208
+        elif "lidar" in img_path:
+            img_width = 1024
+            img_height = 128
+
+        # Initialize empty boxes and labels for test set (if no labels available)
+        boxes = []
+        labels = []
+
+        if self.label_dir:
+            # If labels are available, load YOLO-format boxes: x_center, y_center, width, height, class_label
+            label_path = os.path.join(self.label_dir, img_filename)
+            if os.path.exists(label_path):
+                yolo_boxes = np.roll(np.loadtxt(fname=label_path, delimiter=" ", ndmin=2), 4, axis=1).tolist()
+
+                # Convert YOLO to Pascal VOC (xmin, ymin, xmax, ymax)
+                for box in yolo_boxes:
+                    x_center, y_center, width, height, class_label = box
+                    x_min = (x_center - width / 2) * img_width
+                    y_min = (y_center - height / 2) * img_height
+                    x_max = (x_center + width / 2) * img_width
+                    y_max = (y_center + height / 2) * img_height
+
+                    boxes.append([x_min, y_min, x_max, y_max])
+                    mapped_label = 1  # For binary classification, we map to class 1
+                    labels.append(int(mapped_label))
+            else:
+                print(f"Label not found for {img_filename}, skipping...")
+
+        # Apply transformations if available
+        if self.transform:
+            transformed = self.transform(
+                image=image,
+                bboxes=boxes,
+                class_labels=labels
+            )
+            image = transformed['image']
+            boxes = transformed['bboxes']
+            labels = transformed['class_labels']
+
+        # Handle empty boxes case (for test set where no labels exist)
+        if len(boxes) == 0:
+            boxes = torch.zeros((0, 4), dtype=torch.float32)
+            labels = torch.zeros((0,), dtype=torch.int64)
+        else:
+            boxes = torch.as_tensor(boxes, dtype=torch.float32).clone().detach()
+            labels = torch.as_tensor(labels, dtype=torch.int64).clone().detach()
+
+        target = {
+            'boxes': boxes,
+            'labels': labels,
+            'orig_size': torch.tensor([img_height, img_width], dtype=torch.int32)
+        }
+
+        # For test set, you might not want to return the target in the same format if no labels are available
+        if not self.label_dir:
+            return image, target, img_path  # Return only image and target without labels
+        return image, target
+
+
+class Dataset2(torch.utils.data.Dataset):
 	"""
     This class with following functions is gathered from Geeks for Geeks: https://www.geeksforgeeks.org/yolov3-from-scratch-using-pytorch/ 
     Accessed: 09-04-2025

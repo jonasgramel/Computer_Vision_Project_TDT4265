@@ -14,9 +14,11 @@ from utils.metrics_calculation import iou_loss, compute_iou, FocalLoss
 from utils.plot_picture import plot_image, visualize_dataset_sample, visualize_predictions, visualize_preds_vs_gt
 
 import tqdm
+from PIL import Image
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import cv2 
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 np.float = float
@@ -29,22 +31,21 @@ device = torch.device('cuda')
 learning_rate = 1e-5
 
 # Number of epochs for training 
-num_epochs = 20
-unfreeze_at_epoch = 10
+num_epochs = 30
 
 # Image size 
 image_size = 224
 
-batch_size=8
+batch_size=16
 
-# Define custom anchor generator with narrow/tall aspect ratios
+
 anchor_generator = AnchorGenerator(
-    sizes=((32,), (64,), (128,), (256,), (512,)),  # 5 tuples for 5 FPN levels
-    aspect_ratios=((0.5, 1.0, 2.0),) * 5  # repeat aspect ratios 5 times
+    sizes=((32,), (64,), (128,), (256,), (512,)),
+    aspect_ratios=((0.05, 0.1, 0.2),) * 5  # Modify aspect ratios for tall objects
 )
 
 # Define ResNet50 backbone with FPN
-backbone = torchvision.models.detection.backbone_utils.resnet_fpn_backbone(backbone_name='resnet50', weights='DEFAULT')
+backbone = torchvision.models.detection.backbone_utils.resnet_fpn_backbone(backbone_name='resnet50', pretrained=True)
 
 # Initialize the Faster R-CNN model
 pretrained_model = FasterRCNN(
@@ -53,13 +54,15 @@ pretrained_model = FasterRCNN(
     rpn_anchor_generator=anchor_generator
 )
 
+pretrained_model = pretrained_model.to(device)
+
 # Freeze layers except layer4 of ResNet50 initially
 for name, param in pretrained_model.backbone.body.named_parameters():
     if "layer4" not in name:  # Freeze everything except layer4
         param.requires_grad = False
 
 in_features = pretrained_model.roi_heads.box_predictor.cls_score.in_features
-pretrained_model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes=num_classes)
+pretrained_model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
 
 optimizer = torch.optim.Adam(
@@ -81,8 +84,6 @@ train_transform = A.Compose(
 			brightness=0.5, contrast=0.5, 
 			saturation=0.5, hue=0.5, p=0.5
 		), 
-		# Flip the image horizontally 
-		A.HorizontalFlip(p=0.5), 
 		# Normalize the image 
 		A.Normalize( 
 			mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), max_pixel_value=255
@@ -124,6 +125,105 @@ val_transform = A.Compose(
 				)
 )
 
+def predict(model, image_size, output_folder, device='cuda'):
+    """
+    Predict bounding boxes using a PyTorch model on the test set.
+
+    Args:
+        model: The trained PyTorch model.
+        image_size: The size of the image to resize to (e.g., 224).
+        output_folder: Folder where the predictions will be saved.
+        device: Device to run the model on ('cuda' or 'cpu').
+    """
+    model.to(device)
+    model.eval()  # Set the model to evaluation mode
+
+    os.makedirs(output_folder, exist_ok=True)  # Create the output folder if it doesn't exist
+    
+    # Define the transformation for the test set (same as the val_transform)
+    test_transform = A.Compose(
+        [
+            # Rescale the image so that the maximum side is equal to image_size
+            A.LongestMaxSize(max_size=image_size),
+            # Pad the remaining areas with zeros (to ensure the final image size)
+            A.PadIfNeeded(
+                min_height=image_size, min_width=image_size, border_mode=cv2.BORDER_CONSTANT
+            ),
+            # Normalize the image
+            A.Normalize(
+                mean=(0.485, 0.456, 0.406),
+                std=(0.229, 0.224, 0.225),
+                max_pixel_value=255,
+            ),
+            # Convert the image to PyTorch tensor
+            ToTensorV2()
+        ]
+    )
+
+    # Initialize the dataset for the test set
+    test_dataset = Dataset(
+        image_dir="/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/test",  # Use the "test" folder
+        label_dir=None,  # Use the "test" folder
+        transform=test_transform
+    )
+
+    # Create the DataLoader for the test set
+    test_loader = torch.utils.data.DataLoader(
+        dataset=test_dataset, 
+        batch_size=1,  # Make sure to adjust this depending on your GPU memory
+        shuffle=False,  # Do not shuffle in test set
+        collate_fn=collate_fn  # Ensure that you have a collate_fn to handle different sizes of bounding boxes
+    )
+
+    # Iterate over the test set
+    for images, targets, image_paths in test_loader:
+        images = list(img.to(device) for img in images)  # Move images to device
+        
+        with torch.no_grad():  # No gradients are needed for inference
+            predictions = pretrained_model(images)  # Run inference on the images
+
+        # Assuming batch size is 1 (image_paths is a list with single path)
+        for idx, prediction in enumerate(predictions):
+            # Ensure we are accessing the image path correctly from the test loader
+            image_path = image_paths[idx]  # This should be a string representing the image file path
+            image_name = os.path.basename(image_path)  # Extract the file name (e.g., "image1.png")
+            
+            # Get the original image size (height, width) for normalization
+            original_image = Image.open(image_path)
+            image_width, image_height = original_image.size
+            
+            # Check if predictions have bounding boxes, labels, and scores
+            if len(prediction['boxes']) == 0:  # No predictions
+                print(f"No predictions for {image_name}")
+                continue  # Skip to the next image
+            
+            boxes = prediction['boxes'].cpu().numpy()  # Bounding boxes
+            labels = prediction['labels'].cpu().numpy()  # Class labels
+            scores = prediction['scores'].cpu().numpy()  # Confidence scores
+
+            # Define the text file path for saving predictions
+            txt_filepath = os.path.join(output_folder, image_name.replace(".png", ".txt"))
+
+            with open(txt_filepath, 'w') as f:
+                for i in range(len(boxes)):
+                    # YOLO format requires the box to be in normalized coordinates
+                    x_min, y_min, x_max, y_max = boxes[i]
+                    
+                    # Convert from absolute pixel values to normalized values
+                    x_center = (x_min + x_max) / 2 / image_width
+                    y_center = (y_min + y_max) / 2 / image_height
+                    width = (x_max - x_min) / image_width
+                    height = (y_max - y_min) / image_height
+                    confidence = scores[i]
+                    
+                    # Write in YOLO format: class_id x_center y_center width height confidence
+                    # Assuming the class_id is always 0 (as per your example)
+                    f.write(f"0 {x_center} {y_center} {width} {height} {confidence}\n")
+
+            print(f"Predictions for {image_name} saved to {txt_filepath}")
+
+    print("Inference complete and results saved!")
+
 def collate_fn(batch):
     return tuple(zip(*batch))
 
@@ -157,7 +257,7 @@ val_loader = torch.utils.data.DataLoader(
     collate_fn=collate_fn
 )
 
-def filter_predictions(pred, score_thresh=0.2):
+def filter_predictions(pred, score_thresh=0.5):
     boxes = pred['boxes']
     scores = pred['scores']
     labels = pred['labels']
@@ -172,7 +272,7 @@ def filter_predictions(pred, score_thresh=0.2):
 images, targets = next(iter(loader))
 print(targets[0])
 
-trainresnet = True
+trainresnet = False
 
 if __name__ == "__main__":
     
@@ -181,7 +281,6 @@ if __name__ == "__main__":
     if trainresnet:
         
         print("♫Training Montage♫ by Vince DiCola starts playing...")
-        train_losses = []
         train_losses = []
         val_losses = []  # To track validation losses
         val_mAP = []  # To track validation mAP
@@ -194,24 +293,26 @@ if __name__ == "__main__":
         for epoch in tqdm.trange(num_epochs):
 
             if epoch < 2:
-                lr = 1e-6
                 for g in optimizer.param_groups:
-                    g['lr'] = lr
-            if epoch == 2:  # Unfreeze 'layer3'
+                    g['lr'] = 1e-5
+            if epoch == 10:  # Unfreeze 'layer3'
                 print("Unfreezing layer 3. Cool party!")
                 torch.cuda.empty_cache()
-                lr = 1e-5
                 for g in optimizer.param_groups:
-                    g['lr'] = lr
+                    g['lr'] = 5e-6
                 for param in pretrained_model.backbone.body.layer3.parameters():
                     param.requires_grad = True
-            elif epoch == 6:  # Unfreeze 'layer2'
+            elif epoch == 18:  # Unfreeze 'layer2'
                 print("Unfreezing layer 2. What killed the dinosaurs? The Ice Age!")
                 torch.cuda.empty_cache()
+                for g in optimizer.param_groups:
+                    g['lr'] = 1e-6
                 for param in pretrained_model.backbone.body.layer2.parameters():
                     param.requires_grad = True
-            elif epoch == 10:  # Unfreeze the entire backbone
+            elif epoch == 25:  # Unfreeze the entire backbone
                 torch.cuda.empty_cache()
+                for g in optimizer.param_groups:
+                    g['lr'] = 1e-7
                 print("Unfreezing the entire backbone. Everybody chill!")
                 for param in pretrained_model.backbone.parameters():
                     param.requires_grad = True
@@ -254,10 +355,12 @@ if __name__ == "__main__":
 
                 # Now, sum all the losses
                 total_loss = loss_classifier + loss_box_reg + loss_objectness + loss_rpn_box_reg
+                epoch_loss += total_loss
 
                 # Perform backward pass with the total loss
                 optimizer.zero_grad()
                 total_loss.backward()  # Backpropagate with the total loss
+                torch.nn.utils.clip_grad_norm_(pretrained_model.parameters(), max_norm=1.0)
                 optimizer.step()  # Update model parameters
             
             avg_loss = epoch_loss/len(loader)
@@ -265,7 +368,7 @@ if __name__ == "__main__":
 
             # Validation phase
             pretrained_model.eval()
-            val_loss = 0.0
+            val_epoch_loss = 0.0
             val_map = 0.0
             val_map050 = 0.0
             metric = MeanAveragePrecision()
@@ -282,12 +385,15 @@ if __name__ == "__main__":
                     metric.update(outputs, targets)
 
                     # 2. Compute validation loss
-                    loss_dict = pretrained_model(images, targets)  # This returns a dict of loss tensors
-                    batch_loss = sum(
-                        loss for loss in loss_dict
-                        if isinstance(loss, torch.Tensor) and torch.isfinite(loss).all() and loss.numel() > 0
-                    )
-                    val_loss += batch_loss
+                    val_loss_dict = pretrained_model(images, targets)  # This returns a dict of loss tensors
+                    val_loss_classifier = loss_dict['loss_classifier']  # Original classification loss
+                    val_loss_box_reg = loss_dict['loss_box_reg']  # Bounding box regression loss
+                    val_loss_objectness = loss_dict['loss_objectness']  # RPN objectness loss
+                    val_loss_rpn_box_reg = loss_dict['loss_rpn_box_reg']  # RPN box regression loss
+
+                    # Now, sum all the losses
+                    val_total_loss = val_loss_classifier + val_loss_box_reg + val_loss_objectness + val_loss_rpn_box_reg
+                    val_epoch_loss += val_total_loss
 
                     # Compute metrics for mAP
                 results = metric.compute()
@@ -295,7 +401,7 @@ if __name__ == "__main__":
                 val_map050 += results["map_50"]
 
             # Average the results over validation batches
-            avg_val_loss = val_loss / len(val_loader)
+            avg_val_loss = val_epoch_loss / len(val_loader)
             avg_val_map = val_map / len(val_loader)
             avg_val_map050 = val_map050 / len(val_loader)
 
@@ -305,13 +411,15 @@ if __name__ == "__main__":
             val_mAP050.append(avg_val_map050)
 
             # Print the results
-            print(f"Epoch {epoch} - Train Loss: {avg_loss:.6f}, Val Loss: {val_loss:.6f}, mAP@.5:.95: {results['map'].item():.4f}, mAP@.5: {results['map_50'].item():.4f}")
+            print(f"Epoch {epoch} - Train Loss: {avg_loss:.6f}, Val Loss: {avg_val_loss:.6f}, mAP@.5:.95: {results['map'].item():.4f}, mAP@.5: {results['map_50'].item():.4f}")
 
 
         print("Dragoooo! Dragooooooo! Dragoooooooooooo!")
 
+        train_losses_cpu = torch.tensor(train_losses).cpu().numpy()
+
         plt.figure()
-        plt.plot(range(1, num_epochs+1), train_losses)
+        plt.plot(range(1, num_epochs+1), train_losses_cpu)
         plt.title("Training Loss Curve")
         plt.xlabel("epoch")
         plt.ylabel("Loss")
@@ -413,3 +521,7 @@ if __name__ == "__main__":
         print("recall: ", results['recall'][0].mean().item())
     else:
         print("Recall not available — likely no matched predictions.")
+
+
+
+    predict(pretrained_model, image_size, "resnet/predictions", device='cuda')
