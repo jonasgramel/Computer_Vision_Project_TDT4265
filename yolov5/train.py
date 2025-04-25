@@ -72,7 +72,7 @@ if __name__ == "__main__":
     # Load the model
     model = model.to(device)
     # Initialize the loss function
-    loss_fn = YOLOLoss(scaled_anchors = scaled_anchors)
+    loss_fn = YOLOLoss(model)
     # Initialize the optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
