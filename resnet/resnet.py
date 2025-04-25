@@ -191,6 +191,7 @@ def predict(model, image_size, output_folder, device='cuda'):
             # Get the original image size (height, width) for normalization
             original_image = Image.open(image_path)
             image_width, image_height = original_image.size
+            print(original_image.size)
             
             # Check if predictions have bounding boxes, labels, and scores
             if len(prediction['boxes']) == 0:  # No predictions
@@ -432,7 +433,7 @@ if __name__ == "__main__":
         plt.ylabel('mAP@050:0.95')
         plt.grid(True)
         plt.title('Validation mAP@050:0.95')
-        plt.savefig("resnet_val_mAP@050:0.95_curve.png")
+        plt.savefig("resnet_val_mAP@050-095_curve.png")
 
         plt.figure(figsize=(10, 5))
         plt.plot(range(1, num_epochs+1), val_mAP050, label='Validation mAP@0.50')
@@ -440,7 +441,7 @@ if __name__ == "__main__":
         plt.ylabel('mAP@0.50')
         plt.grid(True)
         plt.title('Validation mAP@0.50')
-        plt.savefig("resnet_val_mAP@0.50_curve.png")
+        plt.savefig("resnet_val_mAP@050_curve.png")
 
         
     pretrained_model.eval()
