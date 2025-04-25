@@ -36,7 +36,7 @@ num_epochs = 100
 # Image size 
 image_size = 224
 
-batch_size=16
+batch_size=8
 
 
 anchor_generator = AnchorGenerator(
@@ -302,7 +302,7 @@ if __name__ == "__main__":
                     g['lr'] = 1e-6
                 for param in pretrained_model.backbone.body.layer2.parameters():
                     param.requires_grad = True
-            elif epoch == 10:  # Unfreeze the entire backbone
+            elif epoch == 30:  # Unfreeze the entire backbone
                 torch.cuda.empty_cache()
                 for g in optimizer.param_groups:
                     g['lr'] = 1e-7
