@@ -211,10 +211,10 @@ def predict(model, image_size, output_folder, device='cuda'):
                     x_min, y_min, x_max, y_max = boxes[i]
                     
                     # Convert from absolute pixel values to normalized values
-                    x_center = (x_min + x_max) / 2 / image_width
-                    y_center = (y_min + y_max) / 2 / image_height
-                    width = (x_max - x_min) / image_width
-                    height = (y_max - y_min) / image_height
+                    x_center = (x_min + x_max) / 2 / image_size
+                    y_center = (y_min + y_max) / 2 / image_size
+                    width = (x_max - x_min) / image_size
+                    height = (y_max - y_min) / image_size
                     confidence = scores[i]
                     
                     # Write in YOLO format: class_id x_center y_center width height confidence
