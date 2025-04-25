@@ -1,8 +1,66 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+import torch.nn.functional as F
+
 
 from utils.box_preparation import yolo_to_xy_coords
+
+
+def compute_iou(pred_boxes, target_boxes):
+    # pred_boxes, target_boxes: tensors of shape [N, 4] where each box is [x_min, y_min, x_max, y_max]
+    
+    # Calculate the intersection area
+    inter_x_min = torch.max(pred_boxes[:, 0], target_boxes[:, 0])
+    inter_y_min = torch.max(pred_boxes[:, 1], target_boxes[:, 1])
+    inter_x_max = torch.min(pred_boxes[:, 2], target_boxes[:, 2])
+    inter_y_max = torch.min(pred_boxes[:, 3], target_boxes[:, 3])
+
+    inter_area = torch.clamp(inter_x_max - inter_x_min, min=0) * torch.clamp(inter_y_max - inter_y_min, min=0)
+
+    # Calculate the union area
+    area_pred = (pred_boxes[:, 2] - pred_boxes[:, 0]) * (pred_boxes[:, 3] - pred_boxes[:, 1])
+    area_target = (target_boxes[:, 2] - target_boxes[:, 0]) * (target_boxes[:, 3] - target_boxes[:, 1])
+
+    union_area = area_pred + area_target - inter_area
+
+    # Calculate IoU
+    iou = inter_area / union_area
+    return iou
+
+def iou_loss(pred_boxes, target_boxes):
+    # Return the mean IoU loss, aiming to minimize it
+    iou = compute_iou(pred_boxes, target_boxes)
+    return 1 - iou.mean()  # We subtract from 1 because we want to maximize IoU
+
+class FocalLoss(torch.nn.Module):
+    def __init__(self, alpha=0.25, gamma=2, reduction='mean'):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def forward(self, inputs, targets):
+        # inputs: [N, C] (logits or probabilities for each class)
+        # targets: [N] (ground truth labels for each sample)
+
+        # Apply softmax to get class probabilities
+        probs = torch.softmax(inputs, dim=-1)
+
+        # For each example, get the probability for the true class
+        p_t = probs.gather(dim=-1, index=targets.unsqueeze(-1))
+
+        # Compute focal loss
+        loss = -self.alpha * (1 - p_t) ** self.gamma * torch.log(p_t)
+
+        # Reduce loss (mean or sum)
+        if self.reduction == 'mean':
+            return loss.mean()
+        elif self.reduction == 'sum':
+            return loss.sum()
+        else:
+            return loss
+
 
 # Defining a function to calculate Intersection over Union (IoU) 
 def iou(box1, box2, is_pred=True): 
