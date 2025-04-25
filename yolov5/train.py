@@ -58,7 +58,8 @@ def training_loop(model, train_loader, optimizer, loss_fn, scaled_anchors):
     for batch_idx, (images, targets) in enumerate(progress_bar):
    
         images = images.to(device)
-        targets = {key: value.to(device) for key, value in targets.items()}
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
         # print(f"Input image shape: {images.shape}")
 
         raw_outputs = model.model(images)
