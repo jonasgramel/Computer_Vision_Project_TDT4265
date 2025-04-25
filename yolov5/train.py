@@ -57,12 +57,12 @@ def training_loop(model, train_loader, optimizer, loss_fn, scaled_anchors):
     losses = []
     for batch_idx, (images, targets) in enumerate(progress_bar):
    
-        images = images.to(device)
+        images = torch.stack(images).to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
         # print(f"Input image shape: {images.shape}")
 
-        raw_outputs = model.model(images)
+        raw_outputs = model(images)
 
         loss = loss_fn(raw_outputs, targets, scaled_anchors)
         losses.append(loss.item())

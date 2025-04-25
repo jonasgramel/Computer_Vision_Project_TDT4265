@@ -4,17 +4,17 @@ from torchvision.ops import box_iou
 import torch.nn as nn
 import torch.nn.functional as F
 
-model = torch.hub.load("ultralytics/yolov5", "yolov5s", pretrained=True, classes=1)
+full_model = torch.hub.load("ultralytics/yolov5", "yolov5s", pretrained=True, classes=1)
+model = full_model.model
 
-
-detec_layer = model.model[-1]
+detec_layer = model[-1]
 anchors = detec_layer.anchors.clone().detach()
 strides = detec_layer.stride
 scaled_anchors = anchors * strides.view(-1, 1, 1)
 
 image_size = 640
 # Freeze backbone
-for i, m in enumerate(model.model):
+for i, m in enumerate(model):
     if i <= 9:
         for p in m.parameters():
             p.requires_grad = False
