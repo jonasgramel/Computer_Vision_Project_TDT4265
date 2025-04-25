@@ -503,11 +503,11 @@ if __name__ == "__main__":
                 print(f"Score: {score:.4f}, Box: {box}, Width: {box[2] - box[0]:.2f}, Height: {box[3] - box[1]:.2f}")
 
             # Optional: visualize low-score boxes too
-            visualize_preds_vs_gt(images[idx].cpu(), p, targets[idx])
+            visualize_preds_vs_gt(images[idx].cpu(), p, targets[idx], idx=idx)
 
         # If you want to try filtering at 0.05:
         outputs = [filter_predictions(p, score_thresh=0.05) for p in predictions]
-        visualize_preds_vs_gt(images[0].cpu(), outputs[0], targets[0])
+        visualize_preds_vs_gt(images[0].cpu(), outputs[0], targets[0], idx=3.14)
 
     print("mAP at IoU=0.50:0.95: ", results['map'])
     print("mAP at IoU=0.50: ", results['map_50'])
