@@ -7,6 +7,7 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 import torchvision.models as models
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 from torchvision.ops import box_iou
+from torchvision.ops import box_area  # Add this at the top of your file if not already imported
 
 from utils.box_preparation import convert_cells_to_bboxes
 from utils.file_reading import Dataset
@@ -31,7 +32,7 @@ device = torch.device('cuda')
 learning_rate = 1e-5
 
 # Number of epochs for training 
-num_epochs = 50
+num_epochs = 20
 
 # Image size 
 image_size = 224
@@ -52,11 +53,11 @@ pretrained_model = FasterRCNN(
     backbone=backbone,
     num_classes=num_classes,
     rpn_anchor_generator=anchor_generator,
-    rpn_pre_nms_top_n_train=2000,   # more proposals
-    rpn_pre_nms_top_n_test=1000,
+    rpn_pre_nms_top_n_train=2000,
     rpn_post_nms_top_n_train=1000,
+    rpn_pre_nms_top_n_test=1000,
     rpn_post_nms_top_n_test=300,
-    rpn_nms_thresh=0.7  # maybe reduce this later to 0.5 if poles are close
+    rpn_nms_thresh=0.5
 )
 
 pretrained_model = pretrained_model.to(device)
@@ -236,7 +237,7 @@ val_loader = torch.utils.data.DataLoader(
     collate_fn=collate_fn
 )
 
-def filter_predictions(pred, score_thresh=0.5):
+def filter_predictions(pred, score_thresh=0.05):
     boxes = pred['boxes']
     scores = pred['scores']
     labels = pred['labels']
@@ -350,7 +351,7 @@ if __name__ == "__main__":
             val_epoch_loss = 0.0
             val_map = 0.0
             val_map050 = 0.0
-            metric = MeanAveragePrecision()
+            metric = MeanAveragePrecision(iou_thresholds=[0.3, 0.5, 0.75])
             metric.to(device)
 
             with torch.no_grad():
@@ -427,7 +428,7 @@ if __name__ == "__main__":
 
         
     pretrained_model.eval()
-    metric = MeanAveragePrecision()
+    metric = MeanAveragePrecision(iou_thresholds=[0.3, 0.5, 0.75])
     metric.to(device)
 
     with torch.no_grad():
@@ -473,6 +474,7 @@ if __name__ == "__main__":
             counter += 1
 
         pred_boxes = outputs[0]['boxes'].cpu()
+        print([box_area(b) for b in pred_boxes])
         # filtered_preds = [filter_predictions(p) for p in pred_boxes]
         gt_boxes = targets[0]['boxes'].cpu()
 
@@ -484,13 +486,28 @@ if __name__ == "__main__":
     
     visualize_predictions(images[0].cpu(), outputs[0])
 
+
     images, targets = next(iter(val_loader))
     images = [img.to(device) for img in images]
-    with torch.no_grad():
-        outputs = pretrained_model(images)
-        outputs = [filter_predictions(o) for o in outputs]
 
-    visualize_preds_vs_gt(images[0].cpu(), outputs[0], targets[0])
+    with torch.no_grad():
+        predictions = pretrained_model(images)  # Get raw predictions (not filtered yet)
+
+        for idx, p in enumerate(predictions):
+            boxes = p['boxes'].cpu().numpy()
+            scores = p['scores'].cpu().numpy()
+            labels = p['labels'].cpu().numpy()
+            
+            print(f"\n🔍 Image {idx}: {len(boxes)} boxes predicted")
+            for score, box in zip(scores, boxes):
+                print(f"Score: {score:.4f}, Box: {box}, Width: {box[2] - box[0]:.2f}, Height: {box[3] - box[1]:.2f}")
+
+            # Optional: visualize low-score boxes too
+            visualize_preds_vs_gt(images[idx].cpu(), p, targets[idx])
+
+        # If you want to try filtering at 0.05:
+        outputs = [filter_predictions(p, score_thresh=0.05) for p in predictions]
+        visualize_preds_vs_gt(images[0].cpu(), outputs[0], targets[0])
 
     print("mAP at IoU=0.50:0.95: ", results['map'])
     print("mAP at IoU=0.50: ", results['map_50'])
