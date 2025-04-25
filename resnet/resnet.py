@@ -358,17 +358,21 @@ if __name__ == "__main__":
                     images = [img.to(device) for img in images]
                     targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-                    # 1. Get predictions (used for metric)
-                    outputs = pretrained_model(images)
-                    outputs = [filter_predictions(o) for o in outputs]
-                    metric.update(outputs, targets)
+                    # Switch to training mode briefly to get loss dict
+                    pretrained_model.train()
+                    val_loss_dict = pretrained_model(images, targets)
+                    pretrained_model.eval()  # switch back to eval
 
-                    # 2. Compute validation loss
-                    val_loss_dict = pretrained_model(images, targets)  # This returns a dict of loss tensors
-                    val_loss_classifier = val_loss_dict['loss_classifier']  # Original classification loss
-                    val_loss_box_reg = val_loss_dict['loss_box_reg']  # Bounding box regression loss
-                    val_loss_objectness = val_loss_dict['loss_objectness']  # RPN objectness loss
-                    val_loss_rpn_box_reg = val_loss_dict['loss_rpn_box_reg']  # RPN box regression loss
+                    # Compute filtered predictions for mAP metric
+                    with torch.no_grad():
+                        outputs = pretrained_model(images)
+                        outputs = [filter_predictions(o) for o in outputs]
+                        metric.update(outputs, targets)
+
+                    val_loss_classifier = val_loss_dict['loss_classifier']
+                    val_loss_box_reg = val_loss_dict['loss_box_reg']
+                    val_loss_objectness = val_loss_dict['loss_objectness']
+                    val_loss_rpn_box_reg = val_loss_dict['loss_rpn_box_reg']
 
                     # Now, sum all the losses
                     val_total_loss = val_loss_classifier + val_loss_box_reg + val_loss_objectness + val_loss_rpn_box_reg
