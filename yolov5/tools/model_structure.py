@@ -2,76 +2,109 @@ import torch
 import yaml
 from torchvision.ops import box_iou
 import torch.nn as nn
-model = torch.hub.load("ultralytics/yolov5", "yolov5s", pretrained=True, classes=1)
+import torch.nn.functional as F
 
-detec_layer = model.model[-1]
+full_model = torch.hub.load("ultralytics/yolov5", "yolov5s", pretrained=True, classes=1)
+model = full_model.model
+
+detec_layer = model[-1]
 anchors = detec_layer.anchors.clone().detach()
 strides = detec_layer.stride
 scaled_anchors = anchors * strides.view(-1, 1, 1)
 
 image_size = 640
 # Freeze backbone
-for i, m in enumerate(model.model):
+for i, m in enumerate(model):
     if i <= 9:
         for p in m.parameters():
             p.requires_grad = False
 
 # Test if layers are frozed correctly
-for i, (name, m) in enumerate(model.named_modules()):
-    if hasattr(m, "weight") and hasattr(m.weight, "requires_grad"):
-        print(f"{i:02d} | {name:40s} | requires_grad: {m.weight.requires_grad}")
+# for i, (name, m) in enumerate(model.named_modules()):
+# 	if hasattr(m, "weight") and hasattr(m.weight, "requires_grad"):
+# 		print(f"{i:02d} | {name:40s} | requires_grad: {m.weight.requires_grad}")
 
+class YOLOLoss(nn.Module):
+    def __init__(self, anchors, num_classes=1, strides=[8, 16, 32], lambda_box=0.05, lambda_obj=1.0, lambda_cls=0.5):
+        super().__init__()
+        self.anchors = anchors  # shape: (3, 3, 2)
+        self.num_classes = num_classes
+        self.strides = strides
+        self.lambda_box = lambda_box
+        self.lambda_obj = lambda_obj
+        self.lambda_cls = lambda_cls
 
-class YOLOLoss(nn.Module): 
-	def __init__(self): 
-		super().__init__() 
-		self.mse = nn.MSELoss() 
-		self.bce = nn.BCEWithLogitsLoss() 
-		self.cross_entropy = nn.CrossEntropyLoss() 
-		self.sigmoid = nn.Sigmoid() 
-	
-	def forward(self, pred, target, anchors): 
-		# Identifying which cells in target have objects 
-		# and which have no objects 
-		obj = target[..., 0] == 1
-		no_obj = target[..., 0] == 0
+    def forward(self, predictions, targets, scaled_anchors):
+        device = predictions[0].device
+        loss_cls = 0
+        loss_obj = 0
+        loss_box = 0
+        BCEcls = nn.BCEWithLogitsLoss()
+        BCEobj = nn.BCEWithLogitsLoss()
+        MSEbox = nn.MSELoss()
 
-		# Calculating No object loss 
-		no_object_loss = self.bce( 
-			(pred[..., 0:1][no_obj]), (target[..., 0:1][no_obj]), 
-		) 
+        for scale_idx, pred in enumerate(predictions):
+            B, _, H, W = pred.shape
+            A = scaled_anchors[scale_idx].shape[0]
+            pred = pred.view(B, A, self.num_classes + 5, H, W).permute(0, 1, 3, 4, 2)
 
-		
-		# Reshaping anchors to match predictions 
-		anchors = anchors.reshape(1, 3, 1, 1, 2) 
-		# Box prediction confidence 
-		box_preds = torch.cat([self.sigmoid(pred[..., 1:3]), 
-							torch.exp(pred[..., 3:5]) * anchors 
-							],dim=-1) 
-		# Calculating intersection over union for prediction and target 
-		ious = box_iou(box_preds[obj], target[..., 1:5][obj]).detach() 
-		# Calculating Object loss 
-		object_loss = self.mse(self.sigmoid(pred[..., 0:1][obj]), 
-							ious * target[..., 0:1][obj]) 
+            # Create targets for this scale
+            obj_mask = torch.zeros((B, A, H, W), dtype=torch.bool, device=device)
+            noobj_mask = torch.ones((B, A, H, W), dtype=torch.bool, device=device)
+            tx = torch.zeros((B, A, H, W), device=device)
+            ty = torch.zeros((B, A, H, W), device=device)
+            tw = torch.zeros((B, A, H, W), device=device)
+            th = torch.zeros((B, A, H, W), device=device)
+            tcls = torch.zeros((B, A, H, W, self.num_classes), device=device)
 
-		
-		# Predicted box coordinates 
-		pred[..., 1:3] = self.sigmoid(pred[..., 1:3]) 
-		# Target box coordinates 
-		target[..., 3:5] = torch.log(1e-6 + target[..., 3:5] / anchors) 
-		# Calculating box coordinate loss 
-		box_loss = self.mse(pred[..., 1:5][obj], 
-							target[..., 1:5][obj]) 
+            anchor_grid = scaled_anchors[scale_idx].to(device)  # [A, 2]
 
-		
-		# Claculating class loss 
-		class_loss = self.cross_entropy((pred[..., 5:][obj]), 
-								target[..., 5][obj].long()) 
+            for b in range(B):
+                boxes = targets[b]['boxes'] * torch.tensor([W, H, W, H], device=device)
+                labels = targets[b]['labels'].long()
+                for box_idx, box in enumerate(boxes):
+                    gx, gy, gw, gh = box
+                    gi = int(gx)
+                    gj = int(gy)
 
-		# Total loss 
-		return ( 
-			box_loss 
-			+ object_loss 
-			+ no_object_loss 
-			+ class_loss 
-		)
+                    if gi >= W or gj >= H:
+                        continue  # Skip boxes outside grid
+
+                    # Get best matching anchor
+                    wh = box[2:].unsqueeze(0)
+                    anchor_ratios = anchor_grid / wh
+                    ious = torch.min(anchor_ratios, 1. / anchor_ratios).prod(1)
+                    best_anchor = ious.argmax()
+
+                    obj_mask[b, best_anchor, gj, gi] = 1
+                    noobj_mask[b, best_anchor, gj, gi] = 0
+
+                    tx[b, best_anchor, gj, gi] = gx - gi
+                    ty[b, best_anchor, gj, gi] = gy - gj
+                    tw[b, best_anchor, gj, gi] = torch.log(gw / anchor_grid[best_anchor][0] + 1e-16)
+                    th[b, best_anchor, gj, gi] = torch.log(gh / anchor_grid[best_anchor][1] + 1e-16)
+
+                    tcls[b, best_anchor, gj, gi, labels[box_idx]] = 1
+
+            pred_boxes = pred[..., 0:4]
+            pred_obj = pred[..., 4]
+            pred_cls = pred[..., 5:]
+
+            loss_box += MSEbox(pred_boxes[..., 0][obj_mask], tx[obj_mask])
+            loss_box += MSEbox(pred_boxes[..., 1][obj_mask], ty[obj_mask])
+            loss_box += MSEbox(pred_boxes[..., 2][obj_mask], tw[obj_mask])
+            loss_box += MSEbox(pred_boxes[..., 3][obj_mask], th[obj_mask])
+
+            loss_obj += BCEobj(pred_obj[obj_mask], torch.ones_like(pred_obj[obj_mask]))
+            loss_obj += BCEobj(pred_obj[noobj_mask], torch.zeros_like(pred_obj[noobj_mask]))
+
+            if self.num_classes > 1:
+                loss_cls += BCEcls(pred_cls[obj_mask], tcls[obj_mask])
+
+        total_loss = (
+            self.lambda_box * loss_box +
+            self.lambda_obj * loss_obj +
+            self.lambda_cls * loss_cls
+        )
+
+        return total_loss

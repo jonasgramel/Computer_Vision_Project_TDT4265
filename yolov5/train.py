@@ -1,5 +1,5 @@
 from tools.model_structure import model, scaled_anchors
-from tools.file_reading import Dataset #load_images_and_labels, 
+from tools.file_reading import Dataset, collate_fn#load_images_and_labels, 
 from tools.transforms import train_transform, test_transform
 import torch
 import torch.nn as nn
@@ -29,6 +29,7 @@ train_loader = torch.utils.data.DataLoader(
     num_workers = 2, 
     shuffle = True, 
     pin_memory = True, 
+    collate_fn=collate_fn,
 )
 
 val_dataset = Dataset( 
@@ -44,21 +45,26 @@ val_loader = torch.utils.data.DataLoader(
     batch_size = batch_size, 
     num_workers = 2, 
     shuffle = True, 
-    pin_memory = True, 
+    pin_memory = True,
+    collate_fn=collate_fn, 
 )
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
 
 def training_loop(model, train_loader, optimizer, loss_fn, scaled_anchors):
     model.train()
     progress_bar = tqdm(train_loader, leave=True) 
     losses = []
     for batch_idx, (images, targets) in enumerate(progress_bar):
-        images = images.to(device)
-        targets = targets.to(device)
+   
+        images = torch.stack(images).to(device)
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-        outputs = model(images)
+        # print(f"Input image shape: {images.shape}")
 
-        loss = loss_fn(outputs, targets, scaled_anchors)
+        raw_outputs = model(images)
+
+        loss = loss_fn(raw_outputs, targets, scaled_anchors)
         losses.append(loss.item())
         optimizer.zero_grad()
         loss.backward()
@@ -72,9 +78,10 @@ if __name__ == "__main__":
     # Load the model
     model = model.to(device)
     # Initialize the loss function
-    loss_fn = YOLOLoss(scaled_anchors = scaled_anchors)
+    loss_fn = YOLOLoss(anchors=scaled_anchors)
     # Initialize the optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     for epoch in range(max_epochs):
-        losses = training_loop(model, train_loader, optimizer, max_epochs, loss_fn, scaled_anchors)
+        losses = training_loop(model, train_loader, optimizer, loss_fn, scaled_anchors)
+        print(f"Epoch {epoch+1}/{max_epochs}, Loss: {sum(losses)/len(losses):.4f}")

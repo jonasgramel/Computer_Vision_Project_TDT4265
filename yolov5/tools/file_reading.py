@@ -2,20 +2,160 @@ import torch
 # import pandas as pd
 import os
 import numpy as np
-from PIL import Image, ImageFile 
+from PIL import Image, ImageFile
+import cv2
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 from torchvision.ops import box_iou
 
+def get_bounding_boxes(label_file):
+    """
+    Based on Listing 1 in Bavirisetti et al. (2025): https://www.sciencedirect.com/science/article/pii/S2352340925001350?via%3Dihub
+    Load bounding boxes from the label file.
+
+    Input:
+        - label_file (str): Path to the label file
+    Output:
+        - bboxes (numpy array): Array of bounding boxes in YOLO format
+    """
+    bboxes = []
+    with open(label_file, "r") as f:
+        lines = f.readlines()
+        
+    for line in lines:
+        try:
+            parts = list(map(float, line.strip().split()))
+            if len(parts) == 5:   # Ensure correct YOLO format: class_id x_center y_center bbox_width bbox_height
+                
+                class_id, x_center, y_center, bbox_width, bbox_height = parts
+                bboxes.append([class_id, x_center, y_center, bbox_width, bbox_height])
+            else:
+                print("Invalid bounding box format: ", line)
+        except ValueError:
+            print(f"Error reading line: {line.strip()}")
+           
+    return np.array(bboxes)
+
+
+
+def load_file_names(image_dir, label_dir):
+    """
+    Load all images and their corresponding label files based on the list of image names.
+
+    Input:
+        - folder_path (str): Path to the dataset directory, either to rgb or lidar
+        - image_names (list): List of image names
+    Output:
+        - images (list): List of loaded images in RGB format
+        - label_files (list): List of corresponding label files
+    """
+
+    # if "lidar" in folder_path:
+    #     image_type = "combined_color"
+    # elif "rgb" in folder_path:
+    #     image_type = "images"
+    # else:
+    #     raise ValueError("Invalid path name. Please provide a valid image name.")
+   
+    # image_path = os.path.join(folder_path, image_type, dataset_type)
+    # label_path = os.path.join(folder_path, "labels", dataset_type)    
+
+    image_files = sorted(os.listdir(image_dir))
+    label_files = sorted(os.listdir(label_dir))
+    
+    image_names = [filename for filename in image_files]
+    label_files = [filename for filename in label_files]
+    return image_names, label_files
+
+def load_images_and_labels(image_dir, label_dir):
+	# if "lidar" in folder_path:
+	#     image_type = "combined_color"
+	# elif "rgb" in folder_path:
+	#     image_type = "images"
+	# else:
+	#     raise ValueError("Invalid path name. Please provide a valid image name.")
+	image_names, label_names = load_file_names(image_dir, label_dir)
+	data_dict = {}
+
+	for image_name, label_name in zip(image_names, label_names):
+		image_path = os.path.join(image_dir, image_name)
+		label_path = os.path.join(label_dir, label_name)
+
+		image = cv2.imread(image_path)
+		image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+		bbox = get_bounding_boxes(label_path)[:,1:]
+		label = get_bounding_boxes(label_path)[:,0]
+		dict_index = os.path.splitext(label_name)[0]
+		data_dict[dict_index] = {
+			"image": image_rgb,
+			"bbox": bbox,
+			"label": label
+		}
+
+	return data_dict
+
 # Create a dataset class to load the images and labels from the folder 
-class Dataset(torch.utils.data.Dataset): 
+# class Dataset(torch.utils.data.Dataset): 
+# 	"""
+#     This class with following functions is gathered from Geeks for Geeks: https://www.geeksforgeeks.org/yolov3-from-scratch-using-pytorch/ 
+#     Accessed: 09-04-2025
+#     """
+# 	def __init__( 
+# 		self, image_dir, label_dir, 
+# 		image_size=640, num_classes=1, transform=None
+# 	): 
+# 		# Read the csv file with image names and labels 
+# 		self.data_dict = load_images_and_labels(image_dir, label_dir)
+# 		self.label_list = list(self.data_dict.keys())
+# 		# Image and label directories 
+# 		self.image_dir = image_dir 
+# 		self.label_dir = label_dir 
+# 		# Image size 
+# 		self.image_size = image_size 
+# 		# Transformations 
+# 		self.transform = transform
+# 		# Number of classes 
+# 		self.num_classes = num_classes 
+# 		# Ignore IoU threshold 
+# 		self.ignore_iou_thresh = 0.5
+# 		print(f"Available keys in data_dict: {list(self.data_dict.keys())}")
+# 	def __len__(self): 
+# 		return len(self.label_list) 
+	
+# 	def __getitem__(self, idx):
+		
+# 		dict_index = os.path.splitext(self.label_list[idx])[0]
+# 		data = self.data_dict[dict_index]
+            
+# 		transformed = self.transform(
+# 			image=data[dict_index]["image"],
+# 			bboxes=data[dict_index]["bbox"],
+# 			labels=data[dict_index]["label"]
+# 		)
+
+#     	# Extract the transformed components
+# 		image = transformed["image"]
+# 		bboxes = transformed["bboxes"]
+# 		labels = transformed["labels"]
+
+# 		print(f"Image shape: {image.shape}")
+
+# 		return image, {
+# 			"bboxes": torch.tensor(bboxes, dtype=torch.float32),
+# 			"label": torch.tensor(labels, dtype=torch.float32)
+# 		}
+        
+class Dataset(torch.utils.data.Dataset):
 	"""
     This class with following functions is gathered from Geeks for Geeks: https://www.geeksforgeeks.org/yolov3-from-scratch-using-pytorch/ 
     Accessed: 09-04-2025
     """
-	def __init__( 
-		self, image_dir, label_dir, 
-		image_size=640, num_classes=1, transform=None
-	): 
+
+	def __init__(
+			self, image_dir, label_dir,
+			image_size=640,
+			num_classes=1, transform=None
+	):
+
 		# Read the csv file with image names and labels 
 		self.label_list = [filename for filename in sorted(os.listdir(label_dir))]
 		# Image and label directories 
@@ -33,87 +173,58 @@ class Dataset(torch.utils.data.Dataset):
 	def __len__(self): 
 		return len(self.label_list) 
 	
-	def __getitem__(self, idx): 
-		# Getting the label path 
-		label_path = os.path.join(self.label_dir, self.label_list[idx]) 
-		# We are applying roll to move class label to the last column 
-		# 5 columns: x, y, width, height, class_label 
-		bboxes = np.roll(np.loadtxt(fname=label_path, 
-						delimiter=" ", ndmin=2), 4, axis=1).tolist() 
-		
-		# Getting the image path 
-		img_path = os.path.join(self.image_dir, os.path.splitext(self.label_list[idx])[0] + ".png") 
-		image = np.array(Image.open(img_path).convert("RGB")) 
+	def __getitem__(self, idx):
+		label_path = os.path.join(self.label_dir, self.label_list[idx])
+		yolo_boxes = np.loadtxt(fname=label_path, delimiter=" ", ndmin=2)
 
-		# Albumentations augmentations 
-		if self.transform: 
-			augs = self.transform(image=image, bboxes=bboxes) 
-			image = augs["image"] 
-			bboxes = augs["bboxes"] 
+		# Image
+		img_path = os.path.join(self.image_dir, os.path.splitext(self.label_list[idx])[0] + ".png")
+		image = np.array(Image.open(img_path).convert("RGB"))
 
-		# Below assumes 3 scale predictions (as paper) and same num of anchors per scale 
-		# target : [probabilities, x, y, width, height, class_label] 
-		targets = [torch.zeros((self.num_anchors_per_scale, s, s, 6)) 
-				for s in self.grid_sizes] 
-		
-		# Identify anchor box and cell for each bounding box 
-		for box in bboxes: 
-			# Calculate iou of bounding box with anchor boxes 
-			iou_anchors = box_iou(torch.tensor(box[2:4]), 
-							self.anchors, 
-							is_pred=False) 
-			# Selecting the best anchor box 
-			anchor_indices = iou_anchors.argsort(descending=True, dim=0) 
-			x, y, width, height, class_label = box 
+		# Get image dimensions
+		img_height, img_width = image.shape[:2]
 
-			# At each scale, assigning the bounding box to the 
-			# best matching anchor box 
-			has_anchor = [False] * 3
-			for anchor_idx in anchor_indices: 
-				scale_idx = anchor_idx // self.num_anchors_per_scale 
-				anchor_on_scale = anchor_idx % self.num_anchors_per_scale 
-				
-				# Identifying the grid size for the scale 
-				s = self.grid_sizes[scale_idx] 
-				
-				# Identifying the cell to which the bounding box belongs 
-				i, j = int(s * y), int(s * x) 
-				anchor_taken = targets[scale_idx][anchor_on_scale, i, j, 0] 
-				
-				# Check if the anchor box is already assigned 
-				if not anchor_taken and not has_anchor[scale_idx]: 
+		# YOLO format: [class_id, x_center, y_center, width, height]
+		labels = torch.tensor(yolo_boxes[:, 0], dtype=torch.int64)
+		boxes = torch.tensor(yolo_boxes[:, 1:], dtype=torch.float32)
+		# Apply transform
+		if self.transform:
+			transformed = self.transform(
+				image=image,
+				bboxes=boxes.tolist(),
+				class_labels=labels.tolist()
+			)
+			image = transformed["image"]
+			boxes = torch.tensor(transformed["bboxes"], dtype=torch.float32)
+			labels = torch.tensor(transformed["class_labels"], dtype=torch.int64)
 
-					# Set the probability to 1 
-					targets[scale_idx][anchor_on_scale, i, j, 0] = 1
+		if boxes.numel() == 0:
+			boxes = torch.zeros((0, 4), dtype=torch.float32)
+			labels = torch.zeros((0,), dtype=torch.int64)
 
-					# Calculating the center of the bounding box relative 
-					# to the cell 
-					x_cell, y_cell = s * x - j, s * y - i 
+		target = {
+			'boxes': boxes,
+			'labels': labels,
+		}
 
-					# Calculating the width and height of the bounding box 
-					# relative to the cell 
-					width_cell, height_cell = (width * s, height * s) 
+		return image, target
 
-					# Idnetify the box coordinates 
-					box_coordinates = torch.tensor( 
-										[x_cell, y_cell, width_cell, 
-										height_cell] 
-									) 
+# def collate_fn(batch):
+#     """
+#     Collate function to combine images and targets into a batch.
+#     """
+#     images = []
+#     targets = {"boxes": [], "labels": []}
+#     for item in batch:
+#         images.append(item[0])
+#         targets["boxes"].append(item[1]["boxes"])
+#         targets["labels"].append(item[1]["labels"])
 
-					# Assigning the box coordinates to the target 
-					targets[scale_idx][anchor_on_scale, i, j, 1:5] = box_coordinates 
+#     images = torch.stack(images, dim=0)
+#     targets["boxes"] = torch.cat(targets["boxes"], dim=0)
+#     targets["labels"] = torch.cat(targets["labels"], dim=0)
 
-					# Assigning the class label to the target 
-					targets[scale_idx][anchor_on_scale, i, j, 5] = int(class_label) 
+#     return images, targets
 
-					# Set the anchor box as assigned for the scale 
-					has_anchor[scale_idx] = True
-
-				# If the anchor box is already assigned, check if the 
-				# IoU is greater than the threshold 
-				elif not anchor_taken and iou_anchors[anchor_idx] > self.ignore_iou_thresh: 
-					# Set the probability to -1 to ignore the anchor box 
-					targets[scale_idx][anchor_on_scale, i, j, 0] = -1
-
-		# Return the image and the target 
-		return image, tuple(targets)
+def collate_fn(batch):
+	return tuple(zip(*batch))
