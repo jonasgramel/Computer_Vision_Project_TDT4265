@@ -3,10 +3,12 @@ from tools.file_reading import Dataset, collate_fn#load_images_and_labels,
 from tools.transforms import train_transform, test_transform
 import torch
 import torch.nn as nn
+
 # from torchvision.ops import nms, box_iou
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 from tools.model_structure import YOLOLoss
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -74,6 +76,48 @@ def training_loop(model, train_loader, optimizer, loss_fn, scaled_anchors):
     
     return losses   
 
+@torch.no_grad()
+def validation_loop(model, val_loader, device):
+    model.eval()
+    metrics = MeanAveragePrecision()
+
+    for images, targets in tqdm(val_loader, desc="Validating"):
+        images = list(images)
+        targets = list(targets)
+        
+        for image, target in zip(images, targets):
+            image = image.to(device).unsqueeze(0)
+            # targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+            target = {k: v.to(device) for k, v in target.items()}
+
+            output = model(image)[0]   # Inference output
+            output = output[0]         # remove batch dim
+            
+            if output.numel() == 0:
+                pred = {
+                    'boxes': torch.zeros((0, 4), device=device),
+                    'scores': torch.zeros((0,), device=device),
+                    'labels': torch.zeros((0,), dtype=torch.int64, device=device)
+                }
+            else:
+                pred = {
+                    'boxes': output[:, :4],
+                    'scores': output[:, 4],
+                    'labels': output[:, 5].long() if output.shape[1] > 5 else torch.zeros_like(output[:, 4]).long()
+                }
+        
+        # Update metrics
+            metrics.update([pred], [target])
+    
+    results = metrics.compute()
+    print(f"Validation mAP: {results['map']:.4f}")
+
+    for k,v in results.items():
+        print(f"{k}: {v}")
+    
+    return results
+
+
 if __name__ == "__main__": 
     # Load the model
     model = model.to(device)
@@ -81,7 +125,21 @@ if __name__ == "__main__":
     loss_fn = YOLOLoss(anchors=scaled_anchors)
     # Initialize the optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
+    loss_arr = []
     for epoch in range(max_epochs):
         losses = training_loop(model, train_loader, optimizer, loss_fn, scaled_anchors)
+        loss_arr.append(losses)
         print(f"Epoch {epoch+1}/{max_epochs}, Loss: {sum(losses)/len(losses):.4f}")
+
+        # Validation
+        if epoch % 5 == 0:
+            validation_loop(model, val_loader, device)
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(loss_arr)
+    plt.title("Training Loss")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.savefig("training_loss.png")
+
+    

@@ -4,17 +4,16 @@ from torchvision.ops import box_iou
 import torch.nn as nn
 import torch.nn.functional as F
 
-full_model = torch.hub.load("ultralytics/yolov5", "yolov5s", pretrained=True, classes=1)
-model = full_model.model
+model = torch.hub.load("ultralytics/yolov5", "yolov5s", pretrained=True, classes=1)
 
-detec_layer = model[-1]
+detec_layer = model.model[-1]
 anchors = detec_layer.anchors.clone().detach()
 strides = detec_layer.stride
 scaled_anchors = anchors * strides.view(-1, 1, 1)
 
 image_size = 640
 # Freeze backbone
-for i, m in enumerate(model):
+for i, m in enumerate(model.model):
     if i <= 9:
         for p in m.parameters():
             p.requires_grad = False
@@ -44,9 +43,11 @@ class YOLOLoss(nn.Module):
         MSEbox = nn.MSELoss()
 
         for scale_idx, pred in enumerate(predictions):
-            B, _, H, W = pred.shape
-            A = scaled_anchors[scale_idx].shape[0]
-            pred = pred.view(B, A, self.num_classes + 5, H, W).permute(0, 1, 3, 4, 2)
+            B, A, H, W, C = pred.shape
+            # A = scaled_anchors[scale_idx].shape[0]
+            # C = self.num_classes + 5
+            # pred = pred.view(B, A, self.num_classes + 5, H, W).permute(0, 1, 3, 4, 2)
+            pred = pred.view(B, A, C, H, W).permute(0, 1, 3, 4, 2)  # [B, A, H, W, C]
 
             # Create targets for this scale
             obj_mask = torch.zeros((B, A, H, W), dtype=torch.bool, device=device)
