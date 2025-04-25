@@ -31,7 +31,7 @@ device = torch.device('cuda')
 learning_rate = 1e-5
 
 # Number of epochs for training 
-num_epochs = 3
+num_epochs = 100
 
 # Image size 
 image_size = 224
@@ -295,14 +295,14 @@ if __name__ == "__main__":
                     g['lr'] = 5e-6
                 for param in pretrained_model.backbone.body.layer3.parameters():
                     param.requires_grad = True
-            elif epoch == 18:  # Unfreeze 'layer2'
+            elif epoch == 20:  # Unfreeze 'layer2'
                 print("Unfreezing layer 2. What killed the dinosaurs? The Ice Age!")
                 torch.cuda.empty_cache()
                 for g in optimizer.param_groups:
                     g['lr'] = 1e-6
                 for param in pretrained_model.backbone.body.layer2.parameters():
                     param.requires_grad = True
-            elif epoch == 25:  # Unfreeze the entire backbone
+            elif epoch == 10:  # Unfreeze the entire backbone
                 torch.cuda.empty_cache()
                 for g in optimizer.param_groups:
                     g['lr'] = 1e-7
@@ -517,4 +517,4 @@ if __name__ == "__main__":
 
 
 
-    # predict(pretrained_model, image_size, "resnet/predictions", device='cuda')
+    predict(pretrained_model, image_size, "resnet/predictions", device='cuda')
