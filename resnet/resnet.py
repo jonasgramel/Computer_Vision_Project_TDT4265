@@ -39,8 +39,8 @@ batch_size=32
 
 # Define custom anchor generator with narrow/tall aspect ratios
 anchor_generator = AnchorGenerator(
-    sizes=((32, 64, 128, 256, 512),),  # Default scales
-    aspect_ratios=((0.1, 0.2, 0.5, 1.0),)  # Add narrow/tall boxes
+    sizes=((32,), (64,), (128,), (256,), (512,)),  # 5 tuples for 5 FPN levels
+    aspect_ratios=((0.1, 0.2, 0.5, 1.0),) * 5       # repeat aspect ratios 5 times
 )
 
 backbone = torchvision.models.detection.backbone_utils.resnet_fpn_backbone(
