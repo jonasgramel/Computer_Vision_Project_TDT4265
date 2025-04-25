@@ -1,5 +1,5 @@
 from tools.model_structure import model, scaled_anchors
-from tools.file_reading import Dataset #load_images_and_labels, 
+from tools.file_reading import Dataset, collate_fn#load_images_and_labels, 
 from tools.transforms import train_transform, test_transform
 import torch
 import torch.nn as nn
@@ -29,6 +29,7 @@ train_loader = torch.utils.data.DataLoader(
     num_workers = 2, 
     shuffle = True, 
     pin_memory = True, 
+    collate_fn=collate_fn,
 )
 
 val_dataset = Dataset( 
@@ -44,19 +45,22 @@ val_loader = torch.utils.data.DataLoader(
     batch_size = batch_size, 
     num_workers = 2, 
     shuffle = True, 
-    pin_memory = True, 
+    pin_memory = True,
+    collate_fn=collate_fn, 
 )
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
 
 def training_loop(model, train_loader, optimizer, loss_fn, scaled_anchors):
     model.train()
     progress_bar = tqdm(train_loader, leave=True) 
     losses = []
     for batch_idx, (images, targets) in enumerate(progress_bar):
+   
         images = images.to(device)
         targets = {key: value.to(device) for key, value in targets.items()}
-        print(f"Input image shape: {images.shape}")
-        
+        # print(f"Input image shape: {images.shape}")
+
         raw_outputs = model.model(images)
 
         loss = loss_fn(raw_outputs, targets, scaled_anchors)

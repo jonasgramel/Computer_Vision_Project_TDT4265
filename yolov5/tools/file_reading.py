@@ -185,33 +185,18 @@ class Dataset(torch.utils.data.Dataset):
 		img_height, img_width = image.shape[:2]
 
 		# YOLO format: [class_id, x_center, y_center, width, height]
-		boxes = []
-		labels = []
-
-		for box in yolo_boxes:
-			class_id, xc, yc, w, h = box
-
-			x_min = (xc - w / 2) * img_width
-			y_min = (yc - h / 2) * img_height
-			x_max = (xc + w / 2) * img_width
-			y_max = (yc + h / 2) * img_height
-
-			boxes.append([x_min, y_min, x_max, y_max])
-			labels.append(int(class_id))
-
+		labels = torch.tensor(yolo_boxes[:, 0], dtype=torch.int64)
+		boxes = torch.tensor(yolo_boxes[:, 1:], dtype=torch.float32)
 		# Apply transform
 		if self.transform:
 			transformed = self.transform(
 				image=image,
-				bboxes=boxes,
-				class_labels=labels
+				bboxes=boxes.tolist(),
+				class_labels=labels.tolist()
 			)
 			image = transformed["image"]
-			boxes = transformed["bboxes"]
-			labels = transformed["class_labels"]
-
-		boxes = torch.tensor(boxes, dtype=torch.float32)
-		labels = torch.tensor(labels, dtype=torch.int64)
+			boxes = torch.tensor(transformed["bboxes"], dtype=torch.float32)
+			labels = torch.tensor(transformed["class_labels"], dtype=torch.int64)
 
 		if boxes.numel() == 0:
 			boxes = torch.zeros((0, 4), dtype=torch.float32)
@@ -220,7 +205,26 @@ class Dataset(torch.utils.data.Dataset):
 		target = {
 			'boxes': boxes,
 			'labels': labels,
-			'orig_size': torch.tensor([img_height, img_width], dtype=torch.int32)
 		}
 
 		return image, target
+
+# def collate_fn(batch):
+#     """
+#     Collate function to combine images and targets into a batch.
+#     """
+#     images = []
+#     targets = {"boxes": [], "labels": []}
+#     for item in batch:
+#         images.append(item[0])
+#         targets["boxes"].append(item[1]["boxes"])
+#         targets["labels"].append(item[1]["labels"])
+
+#     images = torch.stack(images, dim=0)
+#     targets["boxes"] = torch.cat(targets["boxes"], dim=0)
+#     targets["labels"] = torch.cat(targets["labels"], dim=0)
+
+#     return images, targets
+
+def collate_fn(batch):
+	return tuple(zip(*batch))
