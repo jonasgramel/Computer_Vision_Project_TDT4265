@@ -7,7 +7,7 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 import torchvision.models as models
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 from torchvision.ops import box_iou
-from torchvision.ops import box_area  # Add this at the top of your file if not already imported
+from torchvision.ops import box_area 
 
 from utils.box_preparation import convert_cells_to_bboxes
 from utils.file_reading import Dataset
@@ -32,7 +32,7 @@ device = torch.device('cuda')
 learning_rate = 1e-5
 
 # Number of epochs for training 
-num_epochs = 20
+num_epochs = 11
 
 # Image size 
 image_size = 224
@@ -474,7 +474,7 @@ if __name__ == "__main__":
             counter += 1
 
         pred_boxes = outputs[0]['boxes'].cpu()
-        print([box_area(b) for b in pred_boxes])
+        # print([box_area(b) for b in pred_boxes])
         # filtered_preds = [filter_predictions(p) for p in pred_boxes]
         gt_boxes = targets[0]['boxes'].cpu()
 
