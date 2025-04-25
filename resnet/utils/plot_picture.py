@@ -101,7 +101,7 @@ def visualize_dataset_sample(dataset, idx=0, figsize=(6, 6)):
     os.makedirs("figures", exist_ok=True)  # Ensure the directory exists
     save_path = f"resnet/figures/train_pic_{idx}.png"
     plt.savefig(save_path)
-    plt.show()
+    # plt.show()
     plt.close(fig)
 
 
@@ -137,7 +137,7 @@ def visualize_predictions(image, prediction, figsize=(6, 6), title="Predictions"
     os.makedirs("figures", exist_ok=True)  # Ensure the directory exists
     save_path = f"resnet/figures/prediction_pic.png"
     plt.savefig(save_path)
-    plt.show()
+    # plt.show()
     plt.close(fig)
 
 
@@ -174,5 +174,5 @@ def visualize_preds_vs_gt(image, pred, gt, image_size=300):
     os.makedirs("figures", exist_ok=True)
     save_path = f"resnet/figures/pred_vs_gt_pic.png"
     plt.savefig(save_path)
-    plt.show()
+    # plt.show()
     plt.close(fig)

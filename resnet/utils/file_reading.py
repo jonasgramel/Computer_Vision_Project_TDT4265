@@ -8,6 +8,9 @@ from utils.metrics_calculation import iou
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
+
+
+
 class Dataset(torch.utils.data.Dataset):
 	"""
     This class with following functions is gathered from Geeks for Geeks: https://www.geeksforgeeks.org/yolov3-from-scratch-using-pytorch/ 
@@ -87,7 +90,7 @@ class Dataset(torch.utils.data.Dataset):
 
 			boxes.append([x_min, y_min, x_max, y_max])
 			#labels.append(int(class_label))  # usually 0 or 1 for binary
-			mapped_label = 1 if int(class_label) == 0 else int(class_label)
+			mapped_label = 1
 			labels.append(int(mapped_label))
 
 
@@ -103,22 +106,22 @@ class Dataset(torch.utils.data.Dataset):
 			labels = transformed['class_labels']
 
 		# Clamp boxes to minimum size to avoid zero/near-zero width or height
-		MIN_SIZE = 1.0  # pixel minimum
+		# MIN_SIZE = 1.0  # pixel minimum
 
-		boxes_clamped = []
-		for b in boxes:
-			x_min, y_min, x_max, y_max = b
-			width = max(x_max - x_min, MIN_SIZE)
-			height = max(y_max - y_min, MIN_SIZE)
+		# boxes_clamped = []
+		# for b in boxes:
+		# 	x_min, y_min, x_max, y_max = b
+		# 	width = max(x_max - x_min, MIN_SIZE)
+		# 	height = max(y_max - y_min, MIN_SIZE)
 
-			# Recompute x_max/y_max to match clamped size
-			x_max = x_min + width
-			y_max = y_min + height
+		# 	# Recompute x_max/y_max to match clamped size
+		# 	x_max = x_min + width
+		# 	y_max = y_min + height
 
-			boxes_clamped.append([x_min, y_min, x_max, y_max])
+		# 	boxes_clamped.append([x_min, y_min, x_max, y_max])
 			
-		boxes = torch.tensor(boxes_clamped, dtype=torch.float32)
-		labels = torch.tensor(labels, dtype=torch.int64)
+		# boxes = torch.tensor(boxes_clamped, dtype=torch.float32)
+		# labels = torch.tensor(labels, dtype=torch.int64)
 
 		# Convert normalized VOC boxes to absolute pixel coords (224x224)
 		boxes = np.array(boxes)  # shape: (N, 4)
@@ -130,8 +133,8 @@ class Dataset(torch.utils.data.Dataset):
 			boxes = torch.zeros((0, 4), dtype=torch.float32)
 			labels = torch.zeros((0,), dtype=torch.int64)
 		else:
-			boxes = torch.tensor(boxes, dtype=torch.float32)
-			labels = torch.tensor(labels, dtype=torch.int64)
+			boxes = torch.as_tensor(boxes, dtype=torch.float32).clone().detach()
+			labels = torch.as_tensor(labels, dtype=torch.int64).clone().detach()
 
 		target = {
 			'boxes': boxes,
