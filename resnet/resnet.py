@@ -31,7 +31,7 @@ device = torch.device('cuda')
 learning_rate = 1e-5
 
 # Number of epochs for training 
-num_epochs = 100
+num_epochs = 50
 
 # Image size 
 image_size = 224
@@ -50,8 +50,13 @@ backbone = torchvision.models.detection.backbone_utils.resnet_fpn_backbone(backb
 # Initialize the Faster R-CNN model
 pretrained_model = FasterRCNN(
     backbone=backbone,
-    num_classes=num_classes,  # 1 class (snow-pole) + 1 background
-    rpn_anchor_generator=anchor_generator
+    num_classes=num_classes,
+    rpn_anchor_generator=anchor_generator,
+    rpn_pre_nms_top_n_train=2000,   # more proposals
+    rpn_pre_nms_top_n_test=1000,
+    rpn_post_nms_top_n_train=1000,
+    rpn_post_nms_top_n_test=300,
+    rpn_nms_thresh=0.7  # maybe reduce this later to 0.5 if poles are close
 )
 
 pretrained_model = pretrained_model.to(device)
@@ -70,34 +75,15 @@ optimizer = torch.optim.Adam(
     lr=1e-5, weight_decay=0.0005
 )
 
-# Transform for training 
-train_transform = A.Compose( 
-	[ 
-		# Rescale an image so that maximum side is equal to image_size 
-		A.LongestMaxSize(max_size=image_size), 
-		# Pad remaining areas with zeros 
-		A.PadIfNeeded( 
-			min_height=image_size, min_width=image_size, border_mode=cv2.BORDER_CONSTANT 
-		), 
-		# Random color jittering 
-		A.ColorJitter( 
-			brightness=0.5, contrast=0.5, 
-			saturation=0.5, hue=0.5, p=0.5
-		), 
-		# Normalize the image 
-		A.Normalize( 
-			mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), max_pixel_value=255
-		), 
-		# Convert the image to PyTorch tensor 
-		ToTensorV2() 
-	], 
-	# Augmentation for bounding boxes 
-	bbox_params=A.BboxParams( 
-					format="pascal_voc", 
-					min_visibility=0.2, 
-					label_fields=[] 
-				) 
-) 
+train_transform = A.Compose([
+    A.LongestMaxSize(max_size=image_size),
+    A.PadIfNeeded(min_height=image_size, min_width=image_size, border_mode=cv2.BORDER_CONSTANT),
+    A.HorizontalFlip(p=0.5),
+    A.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1, p=0.5),
+    A.MotionBlur(blur_limit=3, p=0.2),
+    A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+    ToTensorV2()
+], bbox_params=A.BboxParams(format='pascal_voc', min_visibility=0.2, label_fields=[]))
 
 
 val_transform = A.Compose( 
@@ -288,21 +274,21 @@ if __name__ == "__main__":
             if epoch < 2:
                 for g in optimizer.param_groups:
                     g['lr'] = 1e-5
-            if epoch == 10:  # Unfreeze 'layer3'
+            if epoch == 5:  # Unfreeze 'layer3'
                 print("Unfreezing layer 3. Cool party!")
                 torch.cuda.empty_cache()
                 for g in optimizer.param_groups:
                     g['lr'] = 5e-6
                 for param in pretrained_model.backbone.body.layer3.parameters():
                     param.requires_grad = True
-            elif epoch == 20:  # Unfreeze 'layer2'
+            elif epoch == 10:  # Unfreeze 'layer2'
                 print("Unfreezing layer 2. What killed the dinosaurs? The Ice Age!")
                 torch.cuda.empty_cache()
                 for g in optimizer.param_groups:
                     g['lr'] = 1e-6
                 for param in pretrained_model.backbone.body.layer2.parameters():
                     param.requires_grad = True
-            elif epoch == 30:  # Unfreeze the entire backbone
+            elif epoch == 15:  # Unfreeze the entire backbone
                 torch.cuda.empty_cache()
                 for g in optimizer.param_groups:
                     g['lr'] = 1e-7
@@ -379,10 +365,10 @@ if __name__ == "__main__":
 
                     # 2. Compute validation loss
                     val_loss_dict = pretrained_model(images, targets)  # This returns a dict of loss tensors
-                    val_loss_classifier = loss_dict['loss_classifier']  # Original classification loss
-                    val_loss_box_reg = loss_dict['loss_box_reg']  # Bounding box regression loss
-                    val_loss_objectness = loss_dict['loss_objectness']  # RPN objectness loss
-                    val_loss_rpn_box_reg = loss_dict['loss_rpn_box_reg']  # RPN box regression loss
+                    val_loss_classifier = val_loss_dict['loss_classifier']  # Original classification loss
+                    val_loss_box_reg = val_loss_dict['loss_box_reg']  # Bounding box regression loss
+                    val_loss_objectness = val_loss_dict['loss_objectness']  # RPN objectness loss
+                    val_loss_rpn_box_reg = val_loss_dict['loss_rpn_box_reg']  # RPN box regression loss
 
                     # Now, sum all the losses
                     val_total_loss = val_loss_classifier + val_loss_box_reg + val_loss_objectness + val_loss_rpn_box_reg
