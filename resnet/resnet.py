@@ -29,7 +29,7 @@ device = torch.device('cuda')
 learning_rate = 5e-5
 
 # Number of epochs for training 
-num_epochs = 50
+num_epochs = 9
 unfreeze_at_epoch = 10
 
 # Image size 
