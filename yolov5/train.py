@@ -54,11 +54,12 @@ def training_loop(model, train_loader, optimizer, loss_fn, scaled_anchors):
     losses = []
     for batch_idx, (images, targets) in enumerate(progress_bar):
         images = images.to(device)
-        targets = targets.to(device)
+        targets = {key: value.to(device) for key, value in targets.items()}
+        print(f"Input image shape: {images.shape}")
+        
+        raw_outputs = model.model(images)
 
-        outputs = model(images)
-
-        loss = loss_fn(outputs, targets, scaled_anchors)
+        loss = loss_fn(raw_outputs, targets, scaled_anchors)
         losses.append(loss.item())
         optimizer.zero_grad()
         loss.backward()
@@ -72,9 +73,10 @@ if __name__ == "__main__":
     # Load the model
     model = model.to(device)
     # Initialize the loss function
-    loss_fn = YOLOLoss(model)
+    loss_fn = YOLOLoss(anchors=scaled_anchors)
     # Initialize the optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     for epoch in range(max_epochs):
-        losses = training_loop(model, train_loader, optimizer, max_epochs, loss_fn, scaled_anchors)
+        losses = training_loop(model, train_loader, optimizer, loss_fn, scaled_anchors)
+        print(f"Epoch {epoch+1}/{max_epochs}, Loss: {sum(losses)/len(losses):.4f}")
