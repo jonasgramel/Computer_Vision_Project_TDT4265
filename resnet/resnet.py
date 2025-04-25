@@ -33,7 +33,7 @@ num_epochs = 50
 unfreeze_at_epoch = 10
 
 # Image size 
-image_size = 300
+image_size = 224
 
 batch_size=32
 

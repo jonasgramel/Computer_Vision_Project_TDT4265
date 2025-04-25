@@ -16,7 +16,7 @@ class Dataset(torch.utils.data.Dataset):
 
 	def __init__(
 			self, image_dir, label_dir,
-			image_size=300,
+			image_size=224,
 			num_classes=1, transform=None
 	):
 
@@ -29,7 +29,7 @@ class Dataset(torch.utils.data.Dataset):
 		self.image_size = image_size 
 		# Transformations 
 		self.transform = A.Compose([
-			A.Resize(300, 300),
+			A.Resize(224, 224),
 			A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
 			ToTensorV2()
 		], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels']))
@@ -66,24 +66,24 @@ class Dataset(torch.utils.data.Dataset):
 		for box in yolo_boxes:
 			x_center, y_center, width, height, class_label = box
 
-			# Resize box coordinates to match transform size (300x300)
+			# Resize box coordinates to match transform size (224x224)
 			x_min = (x_center - width / 2)*img_width
 			y_min = (y_center - height / 2)*img_height
 			x_max = (x_center + width / 2)*img_width
 			y_max = (y_center + height / 2)*img_height
 
-			#scale_x = 300 / img_width
-			#scale_y = 300 / img_height
+			#scale_x = 224 / img_width
+			#scale_y = 224 / img_height
 
 			#x_min = (x_center - width / 2) * img_width * scale_x
 			#y_min = (y_center - height / 2) * img_height * scale_y
 			#x_max = (x_center + width / 2) * img_width * scale_x
 			#y_max = (y_center + height / 2) * img_height * scale_y
 
-			#x_min = x_min / 300
-			#y_min = y_min / 300
-			#x_max = x_max / 300
-			#y_max = y_max / 300
+			#x_min = x_min / 224
+			#y_min = y_min / 224
+			#x_max = x_max / 224
+			#y_max = y_max / 224
 
 			boxes.append([x_min, y_min, x_max, y_max])
 			#labels.append(int(class_label))  # usually 0 or 1 for binary
@@ -120,7 +120,7 @@ class Dataset(torch.utils.data.Dataset):
 		boxes = torch.tensor(boxes_clamped, dtype=torch.float32)
 		labels = torch.tensor(labels, dtype=torch.int64)
 
-		# Convert normalized VOC boxes to absolute pixel coords (300x300)
+		# Convert normalized VOC boxes to absolute pixel coords (224x224)
 		boxes = np.array(boxes)  # shape: (N, 4)
 		# boxes[:, [0, 2]] *= self.image_size  # x_min, x_max
 		# boxes[:, [1, 3]] *= self.image_size  # y_min, y_max
@@ -152,7 +152,7 @@ class decomissioned_Dataset(torch.utils.data.Dataset):
     """
 	def __init__(
 		self, image_dir, label_dir, anchors, 
-		image_size=300, grid_sizes=[13, 26, 52], 
+		image_size=224, grid_sizes=[13, 26, 52], 
 		num_classes=1, transform=None
 	): 
 		# Read the csv file with image names and labels 

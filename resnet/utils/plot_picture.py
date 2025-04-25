@@ -65,7 +65,7 @@ def plot_image(image, boxes, labels, scores, image_index, orig_h=None, orig_w=No
 
     # Save the plot
     os.makedirs("figures", exist_ok=True)  # Ensure the directory exists
-    fig_name = "ssd/figures/figure" + str(image_index) + ".png"
+    fig_name = "resnet/figures/figure" + str(image_index) + ".png"
     plt.savefig(fig_name, bbox_inches='tight')
     plt.close(fig)
 
@@ -99,7 +99,7 @@ def visualize_dataset_sample(dataset, idx=0, figsize=(6, 6)):
     plt.axis('off')
     plt.tight_layout()
     os.makedirs("figures", exist_ok=True)  # Ensure the directory exists
-    save_path = f"ssd/figures/train_pic_{idx}.png"
+    save_path = f"resnet/figures/train_pic_{idx}.png"
     plt.savefig(save_path)
     plt.show()
     plt.close(fig)
@@ -135,7 +135,7 @@ def visualize_predictions(image, prediction, figsize=(6, 6), title="Predictions"
     plt.axis('off')
     plt.tight_layout()
     os.makedirs("figures", exist_ok=True)  # Ensure the directory exists
-    save_path = f"ssd/figures/prediction_pic.png"
+    save_path = f"resnet/figures/prediction_pic.png"
     plt.savefig(save_path)
     plt.show()
     plt.close(fig)
@@ -172,7 +172,7 @@ def visualize_preds_vs_gt(image, pred, gt, image_size=300):
     plt.axis('off')
     plt.tight_layout()
     os.makedirs("figures", exist_ok=True)
-    save_path = f"ssd/figures/pred_vs_gt_pic.png"
+    save_path = f"resnet/figures/pred_vs_gt_pic.png"
     plt.savefig(save_path)
     plt.show()
     plt.close(fig)
