@@ -31,7 +31,7 @@ device = torch.device('cuda')
 learning_rate = 1e-5
 
 # Number of epochs for training 
-num_epochs = 30
+num_epochs = 3
 
 # Image size 
 image_size = 224
@@ -188,11 +188,6 @@ def predict(model, image_size, output_folder, device='cuda'):
             image_path = image_paths[idx]  # This should be a string representing the image file path
             image_name = os.path.basename(image_path)  # Extract the file name (e.g., "image1.png")
             
-            # Get the original image size (height, width) for normalization
-            original_image = Image.open(image_path)
-            image_width, image_height = original_image.size
-            print(original_image.size)
-            
             # Check if predictions have bounding boxes, labels, and scores
             if len(prediction['boxes']) == 0:  # No predictions
                 print(f"No predictions for {image_name}")
@@ -207,10 +202,9 @@ def predict(model, image_size, output_folder, device='cuda'):
 
             with open(txt_filepath, 'w') as f:
                 for i in range(len(boxes)):
-                    # YOLO format requires the box to be in normalized coordinates
+                    # YOLO format such that the boxes are in normalized coordinates
                     x_min, y_min, x_max, y_max = boxes[i]
                     
-                    # Convert from absolute pixel values to normalized values
                     x_center = (x_min + x_max) / 2 / image_size
                     y_center = (y_min + y_max) / 2 / image_size
                     width = (x_max - x_min) / image_size
@@ -220,8 +214,6 @@ def predict(model, image_size, output_folder, device='cuda'):
                     # Write in YOLO format: class_id x_center y_center width height confidence
                     # Assuming the class_id is always 0 (as per your example)
                     f.write(f"0 {x_center} {y_center} {width} {height} {confidence}\n")
-
-            print(f"Predictions for {image_name} saved to {txt_filepath}")
 
     print("Inference complete and results saved!")
 
