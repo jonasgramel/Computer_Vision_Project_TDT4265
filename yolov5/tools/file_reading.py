@@ -174,97 +174,48 @@ class Dataset(torch.utils.data.Dataset):
 		return len(self.label_list) 
 	
 	def __getitem__(self, idx):
-		# Getting the label path
 		label_path = os.path.join(self.label_dir, self.label_list[idx])
+		yolo_boxes = np.loadtxt(fname=label_path, delimiter=" ", ndmin=2)
 
-		# Load YOLO-format boxes: x_center, y_center, width, height, class_label
-		yolo_boxes = np.roll(np.loadtxt(fname=label_path, delimiter=" ", ndmin=2), 4, axis=1).tolist()
-
-		# Getting the image path
+		# Image
 		img_path = os.path.join(self.image_dir, os.path.splitext(self.label_list[idx])[0] + ".png")
 		image = np.array(Image.open(img_path).convert("RGB"))
-		
-		# Get image dimensions
-		if "rgb" in img_path:
-			img_width = 1920
-			img_height = 1208
-		elif "lidar" in img_path:
-			img_width = 1024
-			img_height = 128
 
-		# Convert YOLO to Pascal VOC
+		# Get image dimensions
+		img_height, img_width = image.shape[:2]
+
+		# YOLO format: [class_id, x_center, y_center, width, height]
 		boxes = []
 		labels = []
-		# for box in yolo_boxes:
-		# 	x_center, y_center, width, height, class_label = box
 
-		# 	# Resize box coordinates to match transform size (300x300)
-		# 	x_min = (x_center - width / 2)*img_width
-		# 	y_min = (y_center - height / 2)*img_height
-		# 	x_max = (x_center + width / 2)*img_width
-		# 	y_max = (y_center + height / 2)*img_height
+		for box in yolo_boxes:
+			class_id, xc, yc, w, h = box
 
-		# 	#scale_x = 300 / img_width
-		# 	#scale_y = 300 / img_height
+			x_min = (xc - w / 2) * img_width
+			y_min = (yc - h / 2) * img_height
+			x_max = (xc + w / 2) * img_width
+			y_max = (yc + h / 2) * img_height
 
-		# 	#x_min = (x_center - width / 2) * img_width * scale_x
-		# 	#y_min = (y_center - height / 2) * img_height * scale_y
-		# 	#x_max = (x_center + width / 2) * img_width * scale_x
-		# 	#y_max = (y_center + height / 2) * img_height * scale_y
+			boxes.append([x_min, y_min, x_max, y_max])
+			labels.append(int(class_id))
 
-		# 	#x_min = x_min / 300
-		# 	#y_min = y_min / 300
-		# 	#x_max = x_max / 300
-		# 	#y_max = y_max / 300
-
-		# 	boxes.append([x_min, y_min, x_max, y_max])
-		# 	#labels.append(int(class_label))  # usually 0 or 1 for binary
-		# 	mapped_label = 1 if int(class_label) == 0 else int(class_label)
-		# 	labels.append(int(mapped_label))
-
-
-		# Apply transforms after preparing the boxes
+		# Apply transform
 		if self.transform:
 			transformed = self.transform(
 				image=image,
 				bboxes=boxes,
 				class_labels=labels
 			)
-			image = transformed['image']
-			boxes = transformed['bboxes']
-			labels = transformed['class_labels']
+			image = transformed["image"]
+			boxes = transformed["bboxes"]
+			labels = transformed["class_labels"]
 
-		# Clamp boxes to minimum size to avoid zero/near-zero width or height
-		MIN_SIZE = 1.0  # pixel minimum
-		print(f"Image shape: {image.shape}, Target: {target}")
-		# boxes_clamped = []
-		# for b in boxes:
-		# 	x_min, y_min, x_max, y_max = b
-		# 	width = max(x_max - x_min, MIN_SIZE)
-		# 	height = max(y_max - y_min, MIN_SIZE)
-
-		# 	# Recompute x_max/y_max to match clamped size
-		# 	x_max = x_min + width
-		# 	y_max = y_min + height
-
-		# 	boxes_clamped.append([x_min, y_min, x_max, y_max])
-			
-		# boxes = torch.tensor(boxes_clamped, dtype=torch.float32)
 		boxes = torch.tensor(boxes, dtype=torch.float32)
 		labels = torch.tensor(labels, dtype=torch.int64)
 
-		# Convert normalized VOC boxes to absolute pixel coords (300x300)
-		boxes = np.array(boxes)  # shape: (N, 4)
-		# boxes[:, [0, 2]] *= self.image_size  # x_min, x_max
-		# boxes[:, [1, 3]] *= self.image_size  # y_min, y_max
-
-		# Ensure non-empty, well-formed tensors
-		if len(boxes) == 0:
+		if boxes.numel() == 0:
 			boxes = torch.zeros((0, 4), dtype=torch.float32)
 			labels = torch.zeros((0,), dtype=torch.int64)
-		else:
-			boxes = torch.tensor(boxes, dtype=torch.float32)
-			labels = torch.tensor(labels, dtype=torch.int64)
 
 		target = {
 			'boxes': boxes,
