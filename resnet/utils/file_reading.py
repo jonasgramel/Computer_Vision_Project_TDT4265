@@ -56,11 +56,11 @@ class Dataset(torch.utils.data.Dataset):
         # Getting the image path (ensure it has correct extension)
         img_filename = self.label_list[idx]
         img_path = os.path.join(self.image_dir, os.path.splitext(img_filename)[0] + ".png")  # Change to the correct image extension
-        try:
-            image = np.array(Image.open(img_path).convert("RGB"))
-        except FileNotFoundError:
-            print(f"Image not found: {img_path}")
-            raise
+        # try:
+        #     image = np.array(Image.open(img_path).convert("RGB"))
+        # except FileNotFoundError:
+        #     print(f"Image not found: {img_path}")
+        #     raise
 
         # Get image dimensions
         if "rgb" in img_path:
