@@ -78,15 +78,9 @@ optimizer = torch.optim.Adam(
 train_transform = A.Compose([
     A.LongestMaxSize(max_size=image_size),
     A.PadIfNeeded(min_height=image_size, min_width=image_size, border_mode=cv2.BORDER_CONSTANT),
-    
     A.HorizontalFlip(p=0.5),
-    A.RandomBrightnessContrast(p=0.5),
-    A.RandomGamma(p=0.2),
+    A.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1, p=0.5),
     A.MotionBlur(blur_limit=3, p=0.2),
-    A.ShiftScaleRotate(
-        shift_limit=0.02, scale_limit=(0.1, 0.2), rotate_limit=5, p=0.5, border_mode=cv2.BORDER_CONSTANT
-    ),
-    A.RandomSizedBBoxSafeCrop(height=image_size, width=image_size, erosion_rate=0.2, p=0.3),
     A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
     ToTensorV2()
 ], bbox_params=A.BboxParams(format='pascal_voc', min_visibility=0.2, label_fields=[]))
@@ -190,7 +184,7 @@ def predict(model, image_size, output_folder, device='cuda'):
             scores = prediction['scores'].cpu().numpy()  # Confidence scores
 
             # Define the text file path for saving predictions
-            txt_filepath = os.path.join(output_folder, image_name.replace(".png", ".txt"))
+            txt_filepath = os.path.join(output_folder, image_name.replace(".PNG", ".txt"))
 
             with open(txt_filepath, 'w') as f:
                 for i in range(len(boxes)):
@@ -242,7 +236,7 @@ val_loader = torch.utils.data.DataLoader(
     collate_fn=collate_fn
 )
 
-def filter_predictions(pred, score_thresh=0.01):
+def filter_predictions(pred, score_thresh=0.05):
     boxes = pred['boxes']
     scores = pred['scores']
     labels = pred['labels']
@@ -277,12 +271,9 @@ if __name__ == "__main__":
 
         for epoch in tqdm.trange(num_epochs):
 
-            if epoch == 0:
+            if epoch < 2:
                 for g in optimizer.param_groups:
-                    g['lr'] = 1e-4  # Start a bit higher for first epoch
-            if epoch == 2:
-                for g in optimizer.param_groups:
-                    g['lr'] = 1e-5  # Then back to normal
+                    g['lr'] = 1e-5
             if epoch == 5:  # Unfreeze 'layer3'
                 print("Unfreezing layer 3. Cool party!")
                 torch.cuda.empty_cache()
