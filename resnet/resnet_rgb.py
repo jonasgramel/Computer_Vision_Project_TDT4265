@@ -37,7 +37,7 @@ num_epochs = 100
 # Image size 
 image_size = 224
 
-batch_size=8
+batch_size=16
 
 
 anchor_generator = AnchorGenerator(

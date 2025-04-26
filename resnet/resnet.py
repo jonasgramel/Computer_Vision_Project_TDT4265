@@ -32,12 +32,12 @@ device = torch.device('cuda')
 learning_rate = 1e-5
 
 # Number of epochs for training 
-num_epochs = 200
+num_epochs = 100
 
 # Image size 
 image_size = 224
 
-batch_size=8
+batch_size=16
 
 
 anchor_generator = AnchorGenerator(
