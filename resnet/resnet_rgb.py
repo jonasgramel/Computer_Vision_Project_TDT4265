@@ -32,7 +32,7 @@ device = torch.device('cuda')
 learning_rate = 1e-5
 
 # Number of epochs for training 
-num_epochs = 200
+num_epochs = 100
 
 # Image size 
 image_size = 224
@@ -524,4 +524,4 @@ if __name__ == "__main__":
 
 
 
-    predict(pretrained_model, image_size, "resnet/predictions", device='cuda')
+    predict(pretrained_model, image_size, "resnet/predictions_rgb", device='cuda')
