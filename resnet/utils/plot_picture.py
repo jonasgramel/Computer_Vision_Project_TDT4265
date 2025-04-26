@@ -141,7 +141,7 @@ def visualize_predictions(image, prediction, figsize=(6, 6), title="Predictions"
     plt.close(fig)
 
 
-def visualize_preds_vs_gt(image, pred, gt, idx, image_size=300):
+def visualize_preds_vs_gt(image, pred, gt, idx, type, image_size=300):
 
     # De-normalize
     mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
@@ -172,7 +172,7 @@ def visualize_preds_vs_gt(image, pred, gt, idx, image_size=300):
     plt.axis('off')
     plt.tight_layout()
     os.makedirs("figures", exist_ok=True)
-    save_path = f"resnet/figures/pred_vs_gt_pic{idx}.png"
+    save_path = f"resnet/figures/"+type+"pred_vs_gt_pic{idx}.png"
     plt.savefig(save_path)
     # plt.show()
     plt.close(fig)
