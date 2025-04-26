@@ -61,10 +61,11 @@ pretrained_model = FasterRCNN(
 
 pretrained_model = pretrained_model.to(device)
 
-# Freeze layers except layer4 of ResNet50 initially
 for name, param in pretrained_model.backbone.body.named_parameters():
-    if "layer4" not in name:  # Freeze everything except layer4
-        param.requires_grad = False
+    if "conv1" in name or "bn1" in name:
+        param.requires_grad = False  # Freeze very early layers (edges/textures)
+    else:
+        param.requires_grad = True  # Allow all ResNet blocks to adapt
 
 in_features = pretrained_model.roi_heads.box_predictor.cls_score.in_features
 pretrained_model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
@@ -72,7 +73,7 @@ pretrained_model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_cl
 
 optimizer = torch.optim.Adam(
     filter(lambda p: p.requires_grad, pretrained_model.parameters()),
-    lr=1e-5, weight_decay=0.0005
+    lr=1e-5, weight_decay=0.001  # Slightly stronger weight decay
 )
 
 train_transform = A.Compose([
@@ -271,30 +272,43 @@ if __name__ == "__main__":
 
         for epoch in tqdm.trange(num_epochs):
 
-            if epoch < 2:
+            if epoch == 0:
                 for g in optimizer.param_groups:
-                    g['lr'] = 1e-5
-            if epoch == 5:  # Unfreeze 'layer3'
-                print("Unfreezing layer 3. Cool party!")
-                torch.cuda.empty_cache()
+                    g['lr'] = 1e-4  # Start a bit higher for first epoch
+            if epoch == 1:
+                print("Unfreezing the whole backbone (except conv1/bn1)...")
+                for name, param in pretrained_model.backbone.body.named_parameters():
+                    if "conv1" not in name and "bn1" not in name:
+                        param.requires_grad = True
+            if epoch == 2:
                 for g in optimizer.param_groups:
-                    g['lr'] = 5e-6
-                for param in pretrained_model.backbone.body.layer3.parameters():
-                    param.requires_grad = True
-            elif epoch == 10:  # Unfreeze 'layer2'
-                print("Unfreezing layer 2. What killed the dinosaurs? The Ice Age!")
-                torch.cuda.empty_cache()
-                for g in optimizer.param_groups:
-                    g['lr'] = 1e-6
-                for param in pretrained_model.backbone.body.layer2.parameters():
-                    param.requires_grad = True
-            elif epoch == 15:  # Unfreeze the entire backbone
-                torch.cuda.empty_cache()
-                for g in optimizer.param_groups:
-                    g['lr'] = 1e-7
-                print("Unfreezing the entire backbone. Everybody chill!")
-                for param in pretrained_model.backbone.parameters():
-                    param.requires_grad = True
+                    g['lr'] = 1e-5  # Then back to normal
+                for name, param in pretrained_model.backbone.body.named_parameters():
+                    if "conv1" in name or "bn1" in name:
+                        param.requires_grad = True  # Freeze very early layers (edges/textures)
+                    else:
+                        param.requires_grad = True  # Allow all ResNet blocks to adapt
+            # if epoch == 5:  # Unfreeze 'layer3'
+            #     print("Unfreezing layer 3. Cool party!")
+            #     torch.cuda.empty_cache()
+            #     for g in optimizer.param_groups:
+            #         g['lr'] = 5e-6
+            #     for param in pretrained_model.backbone.body.layer3.parameters():
+            #         param.requires_grad = True
+            # elif epoch == 10:  # Unfreeze 'layer2'
+            #     print("Unfreezing layer 2. What killed the dinosaurs? The Ice Age!")
+            #     torch.cuda.empty_cache()
+            #     for g in optimizer.param_groups:
+            #         g['lr'] = 1e-6
+            #     for param in pretrained_model.backbone.body.layer2.parameters():
+            #         param.requires_grad = True
+            # elif epoch == 15:  # Unfreeze the entire backbone
+            #     torch.cuda.empty_cache()
+            #     for g in optimizer.param_groups:
+            #         g['lr'] = 1e-7
+            #     print("Unfreezing the entire backbone. Everybody chill!")
+            #     for param in pretrained_model.backbone.parameters():
+            #         param.requires_grad = True
             
             pretrained_model.train()
 
