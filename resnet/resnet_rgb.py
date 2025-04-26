@@ -497,7 +497,7 @@ if __name__ == "__main__":
         results = metric.compute()
 
     
-    visualize_predictions(images[0].cpu(), outputs[0])
+    visualize_predictions(images[0].cpu(), outputs[0], "rgb")
 
 
     images, targets = next(iter(val_loader))

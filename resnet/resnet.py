@@ -427,7 +427,7 @@ if __name__ == "__main__":
         plt.xlabel("epoch")
         plt.ylabel("Loss")
         plt.grid(True)
-        plt.savefig("resnet_Loss_curve.png")
+        plt.savefig("lidarresnet_Loss_curve.png")
 
         plt.figure(figsize=(10, 5))
         plt.plot(range(1, num_epochs+1), val_mAP, label='Validation mAP@050:0.95')
@@ -435,7 +435,7 @@ if __name__ == "__main__":
         plt.ylabel('mAP@050:0.95')
         plt.grid(True)
         plt.title('Validation mAP@050:0.95')
-        plt.savefig("resnet_val_mAP@050-095_curve.png")
+        plt.savefig("lidarresnet_val_mAP@050-095_curve.png")
 
         plt.figure(figsize=(10, 5))
         plt.plot(range(1, num_epochs+1), val_mAP050, label='Validation mAP@0.50')
@@ -443,7 +443,7 @@ if __name__ == "__main__":
         plt.ylabel('mAP@0.50')
         plt.grid(True)
         plt.title('Validation mAP@0.50')
-        plt.savefig("resnet_val_mAP@050_curve.png")
+        plt.savefig("lidarresnet_val_mAP@050_curve.png")
 
         
     pretrained_model.eval()
@@ -503,7 +503,7 @@ if __name__ == "__main__":
         results = metric.compute()
 
     
-    visualize_predictions(images[0].cpu(), outputs[0])
+    visualize_predictions(images[0].cpu(), outputs[0], "lidar")
 
 
     images, targets = next(iter(val_loader))

@@ -105,7 +105,7 @@ def visualize_dataset_sample(dataset, idx=0, figsize=(6, 6)):
     plt.close(fig)
 
 
-def visualize_predictions(image, prediction, figsize=(6, 6), title="Predictions"):
+def visualize_predictions(image, prediction, type, figsize=(6, 6), title="Predictions"):
     # Unnormalize image (ImageNet)
     mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
     std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
@@ -135,7 +135,7 @@ def visualize_predictions(image, prediction, figsize=(6, 6), title="Predictions"
     plt.axis('off')
     plt.tight_layout()
     os.makedirs("figures", exist_ok=True)  # Ensure the directory exists
-    save_path = f"resnet/figures/prediction_pic.png"
+    save_path = f"resnet/figures/"+type+"prediction_pic.png"
     plt.savefig(save_path)
     # plt.show()
     plt.close(fig)
@@ -172,7 +172,7 @@ def visualize_preds_vs_gt(image, pred, gt, idx, type, image_size=300):
     plt.axis('off')
     plt.tight_layout()
     os.makedirs("figures", exist_ok=True)
-    save_path = f"resnet/figures/"+type+"pred_vs_gt_pic{idx}.png"
+    save_path = f"resnet/figures/"+type+f"pred_vs_gt_pic{idx}.png"
     plt.savefig(save_path)
     # plt.show()
     plt.close(fig)
