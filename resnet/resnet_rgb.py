@@ -32,7 +32,7 @@ device = torch.device('cuda')
 learning_rate = 1e-5
 
 # Number of epochs for training 
-num_epochs = 200
+num_epochs = 100
 
 # Image size 
 image_size = 224
@@ -149,7 +149,7 @@ def predict(model, image_size, output_folder, device='cuda'):
 
     # Initialize the dataset for the test set
     test_dataset = Dataset(
-        image_dir="/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/test",  # Use the "test" folder
+        image_dir="/work/datasets/tdt4265/ad/open/Poles/rgb/images/test",  # Use the "test" folder
         label_dir=None,  # Use the "test" folder
         transform=test_transform
     )
@@ -210,8 +210,8 @@ def collate_fn(batch):
 # Creating a dataset object 
 dataset = Dataset( 
 	#csv_file="train.csv", 
-	image_dir="/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/train", 
-	label_dir="/work/datasets/tdt4265/ad/open/Poles/lidar/labels/train", 
+	image_dir="/work/datasets/tdt4265/ad/open/Poles/rgb/images/train", 
+	label_dir="/work/datasets/tdt4265/ad/open/Poles/rgb/labels/train", 
 	transform=train_transform 
 ) 
 
@@ -225,8 +225,8 @@ loader = torch.utils.data.DataLoader(
 )
 
 val_dataset = Dataset(
-    image_dir="/work/datasets/tdt4265/ad/open/Poles/lidar/combined_color/valid", 
-    label_dir="/work/datasets/tdt4265/ad/open/Poles/lidar/labels/valid", 
+    image_dir="/work/datasets/tdt4265/ad/open/Poles/rgb/images/valid", 
+    label_dir="/work/datasets/tdt4265/ad/open/Poles/rgb/labels/valid", 
     transform=val_transform
 )
 
@@ -503,11 +503,11 @@ if __name__ == "__main__":
                 print(f"Score: {score:.4f}, Box: {box}, Width: {box[2] - box[0]:.2f}, Height: {box[3] - box[1]:.2f}")
 
             # Optional: visualize low-score boxes too
-            visualize_preds_vs_gt(images[idx].cpu(), p, targets[idx], idx=idx, type="lidar")
+            visualize_preds_vs_gt(images[idx].cpu(), p, targets[idx], idx=idx, type="rgb")
 
         # If you want to try filtering at 0.05:
         outputs = [filter_predictions(p, score_thresh=0.05) for p in predictions]
-        visualize_preds_vs_gt(images[0].cpu(), outputs[0], targets[0], idx=3.14, type="lidar")
+        visualize_preds_vs_gt(images[0].cpu(), outputs[0], targets[0], idx=3.14, type="rgb")
 
     print("mAP at IoU=0.50:0.95: ", results['map'])
     print("mAP at IoU=0.50: ", results['map_50'])
@@ -524,4 +524,4 @@ if __name__ == "__main__":
 
 
 
-    predict(pretrained_model, image_size, "resnet/predictions", device='cuda')
+    predict(pretrained_model, image_size, "resnet/predictions_rgb", device='cuda')
