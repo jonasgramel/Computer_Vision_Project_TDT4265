@@ -15,7 +15,7 @@ results = model.train(
     freeze=2,
     batch=32,
     project="yolo11",
-    name="transfer_learning",
+    name="rgb_transfer_learning",
     hsv_h=0.015, # color jitter
     hsv_s=0.7,
     hsv_v=0.4,
@@ -33,7 +33,7 @@ results = model.train(
 model.predict(
     source="/work/datasets/tdt4265/ad/open/Poles/rgb/images/test",
     project="yolo11",
-    name="predictions",
+    name="rgb_predictions",
     save_txt=True,
     save_conf=True # <--- This adds the probability of each predicted box
     )
