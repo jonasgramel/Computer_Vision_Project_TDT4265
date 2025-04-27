@@ -1,0 +1,10 @@
+
+path: /work/datasets/tdt4265/ad/open/Poles/rgb
+
+train: images/train
+val: images/valid
+test: images/test
+
+names:
+  0: Pole
+  # 1: "No Pole"

@@ -1,0 +1,11 @@
+
+path: /home/jonasgm/Documents/TDT4265/Mini_project/lidar
+
+train: images/train
+val: images/valid
+test: images/test
+
+names:
+  0: Pole
+  # 1: "No Pole"
+
