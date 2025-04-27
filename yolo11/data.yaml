@@ -1,12 +1,10 @@
-path: /work/datasets/tdt4265/ad/open/Poles/rgb # rgb path
-# path: /work/datasets/tdt4265/ad/open/Poles/lidar # lidar path
+# path: /work/datasets/tdt4265/ad/open/Poles/rgb # rgb path
+# path: /work/datasets/tdt4265/ad/open/Poles/lidar # lidar path for Cybele
+path: /home/audunsor/Documents/lidar # lidar path to my own directory to workaround combined_color issue
 
-train: images/train # rgb train
-# train: combined_color/train # lidar train
-val: images/valid # rgb val
-# val: combined_color/valid # lidar val
-test: images/test # rgb test
-# train: combined_color/test # lidar test
+train: images/train
+val: images/valid
+test: images/test
 
 names:
   0: snowpole
